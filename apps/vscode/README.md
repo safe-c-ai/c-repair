@@ -1,6 +1,6 @@
 # C Repair
 
-**AI-assisted detection, repair, and validation for C coding standards, in VS Code.** Currently supports CERT® C; MISRA C support is planned.
+**AI-assisted detection, repair, and validation for C coding standards, in VS Code.** Currently supports CERT® C;
 
 C Repair scans a single C file for CERT® C violations, generates repair candidates with an LLM-driven repair harness, runs validation gates (compile / violation-removal / semantic / regression), and lets you review each fix as a diff before accepting it into your file. The final authority is always you: nothing is applied without an explicit Accept.
 

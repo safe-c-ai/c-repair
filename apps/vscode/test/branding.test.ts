@@ -25,10 +25,12 @@ test('display surfaces carry the "C Repair" name, never "CertFix" (D-039)', () =
   const pkg = JSON.parse(readFileSync(join(EXT_DIR, 'package.json'), 'utf8'));
   assert.equal(pkg.displayName, 'C Repair');
   // The description states the standard support without a compliance claim (D-039):
-  // CERT® C now, MISRA C planned; the word "Compliance" is deliberately absent.
+  // CERT® C now; the word "Compliance" is deliberately absent, and future
+  // plans (e.g. MISRA C) are deliberately NOT promised in the description
+  // (user decision, 2026-08-24).
   assert.ok(!/compliance/i.test(pkg.description), 'description avoids "Compliance"');
   assert.ok(pkg.description.includes('CERT® C'), 'description references CERT® C');
-  assert.ok(/MISRA C/.test(pkg.description), 'description names planned MISRA C support');
+  assert.ok(!/MISRA/.test(pkg.description), 'the description must not promise future MISRA support');
   // Internal ids stay: extension name and command/setting prefixes.
   assert.equal(pkg.name, 'c-repair');
   for (const cmd of pkg.contributes.commands) {

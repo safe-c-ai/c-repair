@@ -10,7 +10,7 @@
     "url": "https://github.com/safe-c-ai/c-repair.git",
     "directory": "apps/vscode"
   },
-  "description": "AI-assisted detection, repair, and validation for C coding standards. Currently supports CERT® C. MISRA C support is planned.",
+  "description": "AI-assisted detection, repair, and validation for C coding standards. Currently supports CERT® C.",
   "engines": {
     "vscode": "^1.85.0"
   },

@@ -1,6 +1,6 @@
 # C Repair
 
-**AI-assisted detection, repair, and validation for C coding standards. Currently supports CERT® C. MISRA C support is planned.**
+**AI-assisted detection, repair, and validation for C coding standards. Currently supports CERT® C.**
 
 C Repair is a VS Code extension (plus a local bridge) that takes a single `.c` file, scans every function for CERT C violations, generates repair candidates with an LLM (via OpenRouter, bring-your-own-key), and puts a human in charge of every change: each candidate carries five validation gates (format / compile / violation-removal / semantic / regression) and is applied only on explicit Accept. The invariant: **the output is always `Original C + accepted patches` — nothing else is ever mixed in.**
 
