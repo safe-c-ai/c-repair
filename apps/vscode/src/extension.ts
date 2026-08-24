@@ -435,7 +435,9 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
     void context.globalState.update(WALKTHROUGH_SHOWN_KEY, true);
     void vscode.commands.executeCommand(
       'workbench.action.openWalkthrough',
-      'c-repair-local.c-repair#crepair.gettingStarted',
+      // Derived from the runtime extension id so a publisher change can never
+      // silently break the walkthrough deep link.
+      `${context.extension.id}#crepair.gettingStarted`,
     );
     logInfo('First activation: opened the Getting Started walkthrough.');
   }

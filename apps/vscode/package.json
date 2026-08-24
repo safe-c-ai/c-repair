@@ -4,7 +4,7 @@
   "private": true,
   "displayName": "C Repair",
   "icon": "media/icon.png",
-  "publisher": "c-repair-local",
+  "publisher": "safe-c-ai",
   "repository": {
     "type": "git",
     "url": "https://github.com/safe-c-ai/c-repair.git",
