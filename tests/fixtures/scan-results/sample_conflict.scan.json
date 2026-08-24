@@ -1,0 +1,43 @@
+{
+  "scan_id": "scan-conflict-001",
+  "source_id": "src-sample-conflict",
+  "original_hash": "sha256:abdf66bbd7c77659ade5b6df53599118cf31dc99fe1b2565091db3ae4e7f9745",
+  "context_revision_id": "ctxrev-conflict-1",
+  "rule_profile": { "id": "cert-c-fixture", "version": "0.1.0" },
+  "adapter": { "id": "fixture", "version": "0.1.0" },
+  "harness": { "id": "fixture", "version": "0.1.0" },
+  "functions": [
+    {
+      "function_id": "fn-load-first",
+      "name": "load_first",
+      "original_range": { "start_line": 6, "end_line": 10 },
+      "findings": [
+        {
+          "finding_id": "find-first-str31",
+          "kind": "violation",
+          "rule_id": "STR31-C",
+          "rule_summary": "Guarantee that storage for strings has sufficient space for character data and the null terminator.",
+          "explanation": "strcpy(buf, in) copies into a fixed BUF_SIZE buffer without bounding the length of in, allowing an overflow.",
+          "location": { "start_line": 8, "end_line": 8 },
+          "assumption_dependent": false
+        }
+      ]
+    },
+    {
+      "function_id": "fn-load-second",
+      "name": "load_second",
+      "original_range": { "start_line": 12, "end_line": 16 },
+      "findings": [
+        {
+          "finding_id": "find-second-str31",
+          "kind": "violation",
+          "rule_id": "STR31-C",
+          "rule_summary": "Guarantee that storage for strings has sufficient space for character data and the null terminator.",
+          "explanation": "strcpy(buf, in) copies into a fixed BUF_SIZE buffer without bounding the length of in, allowing an overflow.",
+          "location": { "start_line": 14, "end_line": 14 },
+          "assumption_dependent": false
+        }
+      ]
+    }
+  ]
+}

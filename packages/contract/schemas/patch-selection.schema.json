@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/patch-selection.schema.json",
+  "title": "PatchSelection",
+  "description": "採否の記録。export の入力。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "selection_id",
+    "source_id",
+    "original_hash",
+    "context_revision_id",
+    "decisions",
+    "conflicts"
+  ],
+  "properties": {
+    "selection_id": { "type": "string" },
+    "source_id": { "type": "string" },
+    "original_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "context_revision_id": { "type": "string" },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate_id", "decision"],
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "decision": { "enum": ["accepted", "rejected", "pending"] }
+        }
+      }
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate_ids", "reason"],
+        "properties": {
+          "candidate_ids": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "reason": { "type": "string" }
+        }
+      }
+    }
+  }
+}

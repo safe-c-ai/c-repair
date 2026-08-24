@@ -1,0 +1,16 @@
+{
+  "selection_id": "sel-conflict-001",
+  "source_id": "src-sample-conflict",
+  "original_hash": "sha256:abdf66bbd7c77659ade5b6df53599118cf31dc99fe1b2565091db3ae4e7f9745",
+  "context_revision_id": "ctxrev-conflict-1",
+  "decisions": [
+    { "candidate_id": "cand-001", "decision": "accepted" },
+    { "candidate_id": "cand-002", "decision": "pending" }
+  ],
+  "conflicts": [
+    {
+      "candidate_ids": ["cand-001", "cand-002"],
+      "reason": "Both candidates rewrite the shared macro definition on line 4 (#define BUF_SIZE), so their hunk ranges intersect. cand-001 was accepted first; cand-002 stays pending until cand-001 is un-accepted."
+    }
+  ]
+}

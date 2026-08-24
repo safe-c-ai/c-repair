@@ -1,0 +1,632 @@
+{
+  "name": "c-repair",
+  "version": "0.1.0",
+  "private": true,
+  "displayName": "C Repair",
+  "icon": "media/icon.png",
+  "publisher": "c-repair-local",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safe-c-ai/c-repair.git",
+    "directory": "apps/vscode"
+  },
+  "description": "AI-assisted detection, repair, and validation for C coding standards. Currently supports CERT® C. MISRA C support is planned.",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Linters",
+    "Programming Languages"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:c"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "crepair.scanCurrentFile",
+        "title": "Scan Current File",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.scanAndFixCurrentFile",
+        "title": "Scan & Fix Current File",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.confirmContextAndScan",
+        "title": "Confirm Context & Scan",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.skipContextAndScan",
+        "title": "Skip Context Review & Scan",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.editContext",
+        "title": "Edit Context",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.connectOpenRouter",
+        "title": "Connect OpenRouter",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.setUpBridge",
+        "title": "Set Up Bridge",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.openSettings",
+        "title": "C Repair Settings",
+        "category": "C Repair",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "crepair.openModelProviders",
+        "title": "View Model Providers",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.setApiKey",
+        "title": "Set OpenRouter API Key",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.clearApiKey",
+        "title": "Clear OpenRouter API Key",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.chooseModelMode",
+        "title": "Choose Model Mode",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.resetExtensionState",
+        "title": "Reset Extension State",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.generateRepair",
+        "title": "Generate Repair",
+        "category": "C Repair",
+        "icon": "$(wrench)"
+      },
+      {
+        "command": "crepair.showDiff",
+        "title": "Show Diff",
+        "category": "C Repair",
+        "icon": "$(diff)"
+      },
+      {
+        "command": "crepair.acceptCandidate",
+        "title": "Accept",
+        "category": "C Repair",
+        "icon": "$(check)"
+      },
+      {
+        "command": "crepair.acceptAllReviewed",
+        "title": "Accept All Reviewed",
+        "category": "C Repair",
+        "icon": "$(check-all)"
+      },
+      {
+        "command": "crepair.exportRepairReport",
+        "title": "Export Repair Report",
+        "category": "C Repair",
+        "icon": "$(report)"
+      },
+      {
+        "command": "crepair.exportFeedbackData",
+        "title": "Export Feedback Data (JSON)",
+        "category": "C Repair",
+        "icon": "$(export)"
+      },
+      {
+        "command": "crepair.rejectCandidate",
+        "title": "Reject",
+        "category": "C Repair",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "crepair.showValidationDetail",
+        "title": "Show Validation Detail",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.generateRepairForFinding",
+        "title": "Generate Repair for Finding",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.regenerateRepair",
+        "title": "Regenerate Repair",
+        "category": "C Repair",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "crepair.acceptCurrentDiff",
+        "title": "Accept Repair",
+        "category": "C Repair",
+        "icon": "$(check)"
+      },
+      {
+        "command": "crepair.rejectCurrentDiff",
+        "title": "Reject Repair",
+        "category": "C Repair",
+        "icon": "$(circle-slash)"
+      },
+      {
+        "command": "crepair.regenerateCurrentDiff",
+        "title": "Regenerate Repair",
+        "category": "C Repair",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "crepair.nextDiff",
+        "title": "Next Repair",
+        "category": "C Repair",
+        "icon": "$(arrow-right)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "crepair",
+          "title": "C Repair",
+          "icon": "media/crepair.svg"
+        }
+      ]
+    },
+    "views": {
+      "crepair": [
+        {
+          "id": "crepairResults",
+          "name": "Scan Results",
+          "contextualTitle": "C Repair"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "crepairResults",
+        "contents": "Right-click a .c file and run \"C Repair: Scan Current File\" to begin."
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "crepair.acceptAllReviewed",
+          "when": "view == crepairResults",
+          "group": "navigation@1"
+        },
+        {
+          "command": "crepair.exportRepairReport",
+          "when": "view == crepairResults",
+          "group": "navigation@2"
+        },
+        {
+          "command": "crepair.exportFeedbackData",
+          "when": "view == crepairResults",
+          "group": "navigation@3"
+        },
+        {
+          "command": "crepair.openSettings",
+          "when": "view == crepairResults",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "crepair.scanCurrentFile",
+          "when": "resourceLangId == c && config.crepair.menu.showScan",
+          "group": "navigation@9"
+        },
+        {
+          "command": "crepair.scanAndFixCurrentFile",
+          "when": "resourceLangId == c && config.crepair.menu.showScanAndFix",
+          "group": "navigation@9"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "crepair.generateRepair",
+          "when": "false"
+        },
+        {
+          "command": "crepair.showDiff",
+          "when": "false"
+        },
+        {
+          "command": "crepair.acceptCandidate",
+          "when": "false"
+        },
+        {
+          "command": "crepair.rejectCandidate",
+          "when": "false"
+        },
+        {
+          "command": "crepair.showValidationDetail",
+          "when": "false"
+        },
+        {
+          "command": "crepair.generateRepairForFinding",
+          "when": "false"
+        },
+        {
+          "command": "crepair.regenerateRepair",
+          "when": "false"
+        },
+        {
+          "command": "crepair.acceptCurrentDiff",
+          "when": "false"
+        },
+        {
+          "command": "crepair.rejectCurrentDiff",
+          "when": "false"
+        },
+        {
+          "command": "crepair.regenerateCurrentDiff",
+          "when": "false"
+        },
+        {
+          "command": "crepair.nextDiff",
+          "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "crepair.acceptCurrentDiff",
+          "when": "resourceScheme == crepair",
+          "group": "navigation@1"
+        },
+        {
+          "command": "crepair.rejectCurrentDiff",
+          "when": "resourceScheme == crepair",
+          "group": "navigation@2"
+        },
+        {
+          "command": "crepair.regenerateCurrentDiff",
+          "when": "resourceScheme == crepair",
+          "group": "navigation@3"
+        },
+        {
+          "command": "crepair.nextDiff",
+          "when": "resourceScheme == crepair",
+          "group": "navigation@4"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "crepair.generateRepair",
+          "when": "view == crepairResults && viewItem == crepair.finding.violation",
+          "group": "inline@1"
+        },
+        {
+          "command": "crepair.regenerateRepair",
+          "when": "view == crepairResults && viewItem == crepair.finding.violation.hasCandidate",
+          "group": "inline@1"
+        },
+        {
+          "command": "crepair.showDiff",
+          "when": "view == crepairResults && viewItem =~ /^crepair\\.candidate\\.diffable\\./",
+          "group": "inline@1"
+        },
+        {
+          "command": "crepair.acceptCandidate",
+          "when": "view == crepairResults && viewItem =~ /^crepair\\.candidate\\.diffable\\.acceptable\\.pending$/",
+          "group": "inline@2"
+        },
+        {
+          "command": "crepair.regenerateRepair",
+          "when": "view == crepairResults && viewItem =~ /^crepair\\.candidate\\./",
+          "group": "inline@4"
+        },
+        {
+          "command": "crepair.rejectCandidate",
+          "when": "view == crepairResults && viewItem =~ /^crepair\\.candidate\\..*\\.pending$/",
+          "group": "inline@3"
+        }
+      ]
+    },
+    "configuration": [
+      {
+        "title": "Setup",
+        "properties": {
+          "crepair.apiKey": {
+            "type": "null",
+            "default": null,
+            "order": 0,
+            "markdownDescription": "Stored in VS Code SecretStorage and never written to settings; this shortcut panel has no value of its own.\n\n- [Connect OpenRouter (browser)](command:crepair.connectOpenRouter) — sign in and store the key automatically.\n- [Set API Key manually](command:crepair.setApiKey) — paste an existing `sk-or-...` key.\n- [Clear API Key](command:crepair.clearApiKey) — remove the stored key."
+          },
+          "crepair.commands": {
+            "type": "null",
+            "default": null,
+            "order": 1,
+            "markdownDescription": "Shortcuts to the main C Repair actions; this panel stores no value.\n\n- [Scan Current File](command:crepair.scanCurrentFile) — scan the active `.c` file.\n- [Scan & Fix Current File](command:crepair.scanAndFixCurrentFile) — scan, then generate repairs.\n- [Edit Context](command:crepair.editContext) — review inferred external declarations.\n- [Choose Model Mode](command:crepair.chooseModelMode) — choose Preset, Free or Custom.\n- [Reset Extension State](command:crepair.resetExtensionState) — remove the API key, session and one-time state. Settings values are kept."
+          }
+        }
+      },
+      {
+        "title": "Models & Routing",
+        "properties": {
+          "crepair.modelMode": {
+            "type": "string",
+            "enum": [
+              "default",
+              "free",
+              "custom"
+            ],
+            "default": "default",
+            "order": 2,
+            "enumItemLabels": [
+              "Preset",
+              "Free",
+              "Custom"
+            ],
+            "markdownEnumDescriptions": [
+              "Preset — the model and provider preset of this C Repair release (currently DeepSeek V4 Flash on DeepInfra), tested on the CERT C benchmark. Usage-based cost; the preset may change in future releases.",
+              "Free — uses `crepair.freeModel` at $0 with automatic routing. Quality, speed and availability are lower and the shared free pool can be rate-limited (429).",
+              "Custom — use the Model / Provider Policy / Provider Order / Reasoning Effort values below exactly as set. Unverified combinations are self-service."
+            ],
+            "markdownDescription": "The single source of truth for model routing. Preset (stored value `default`) uses this release's benchmark-tested preset and incurs usage-based OpenRouter charges, typically a few cents per file; the preset may change between releases. Free uses `crepair.freeModel` at $0 with lower quality, speed and availability. Custom uses Model, Provider Policy, Provider Order and Allow Fallbacks exactly as configured; unverified combinations are self-service. Reasoning Effort applies in every mode. Restart the bridge to apply."
+          },
+          "crepair.freeModel": {
+            "type": "string",
+            "default": "nvidia/nemotron-3-super-120b-a12b:free",
+            "markdownDescription": "Used in Free mode and automatically when Preset mode's key has no credits. A one-time notice appears; Preset resumes after credits are added. OpenRouter routes it automatically, and the shared free pool may be slower, lower-quality or rate-limited (429). Restart the bridge to apply."
+          },
+          "crepair.reasoningEffort": {
+            "type": "string",
+            "enum": [
+              "max",
+              "xhigh",
+              "high",
+              "medium",
+              "low",
+              "minimal",
+              "off"
+            ],
+            "default": "xhigh",
+            "markdownEnumDescriptions": [
+              "Nominal top level — the highest named setting. On most providers it maps to about the same budget as xhigh.",
+              "Very high reasoning effort. Highest repair quality; highest cost and latency.",
+              "High reasoning effort.",
+              "Medium reasoning effort — a balance of quality against cost and latency.",
+              "Low reasoning effort — fast and cheap.",
+              "Nominal minimum — the smallest budget while still reasoning.",
+              "Disable reasoning entirely (no thinking tokens)."
+            ],
+            "markdownDescription": "Applies to repair generation and validation gates in every mode; detection always runs with reasoning off. The bridge converts each level to a thinking-token cap. Some providers ignore the distinction: levels may behave equivalently on the Preset DeepInfra model. Restart the bridge to apply."
+          },
+          "crepair.model": {
+            "type": "string",
+            "default": "deepseek/deepseek-v4-flash-0731",
+            "markdownDescription": "Custom mode's OpenRouter model ID. The default `deepseek/deepseek-v4-flash-0731` on DeepInfra is verified; other models may not work with the CERT C prompts. Restart the bridge to apply.\n\nGuidance: [C Repair Leaderboard](https://safe-c-ai.github.io/c-repair-leaderboard/cert-c/) · [OpenRouter Rankings](https://openrouter.ai/rankings)."
+          },
+          "crepair.providerPolicy": {
+            "type": "string",
+            "enum": [
+              "private-cheap",
+              "balanced"
+            ],
+            "enumItemLabels": [
+              "Private & cheapest — ZDR providers only, lowest price first (recommended)",
+              "Balanced — OpenRouter default routing"
+            ],
+            "default": "private-cheap",
+            "markdownDescription": "Used in Custom mode only when Provider Order is empty. Private & cheapest restricts routing to Zero Data Retention providers and sorts by price; if the model has no ZDR endpoint the request may fail — switch to Balanced in that case. Balanced uses OpenRouter's default routing. Restart the bridge to apply."
+          },
+          "crepair.providerOrder": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [
+              "DeepInfra"
+            ],
+            "markdownDescription": "Custom-mode provider priority, e.g. `[\"DeepInfra\"]`. An empty array enables automatic routing through Provider Policy. `[\"DeepInfra\"]` is verified; other orders are self-service. [View providers for the Custom model](command:crepair.openModelProviders). Restart the bridge to apply."
+          },
+          "crepair.allowFallbacks": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "In Custom mode, permit routing outside Provider Order. The verified default is `false`; enabling this makes the serving provider non-deterministic. Restart the bridge to apply."
+          }
+        }
+      },
+      {
+        "title": "Scanning & Context",
+        "properties": {
+          "crepair.contextReview": {
+            "type": "string",
+            "enum": [
+              "when-needed",
+              "always",
+              "never"
+            ],
+            "default": "when-needed",
+            "markdownEnumDescriptions": [
+              "Open the Context Review only when the scan infers missing external declarations (items > 0). Self-contained files skip straight to scanning.",
+              "Legacy: currently equivalent to when-needed. An empty Review carries no information, so files with no inferred items still skip it.",
+              "Never open the Review. Inferred context is left unconfirmed, so dependent findings/candidates are shown as assumption-dependent and the compile check is skipped."
+            ],
+            "markdownDescription": "Controls the editable review shown when missing external declarations are inferred. `never` skips it, making dependent results assumption-dependent and skipping compile validation. Legacy `always` is currently equivalent to `when-needed`. Takes effect on the next scan."
+          },
+          "crepair.compileIncludePaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "default": [],
+            "markdownDescription": "Extra header directories passed to compile validation as `-I`, reducing checks skipped because declarations cannot be resolved. Takes effect on the next scan."
+          },
+          "crepair.autoIncludeFileDir": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Adds the scanned file's directory to compile-validation `-I` paths so adjacent headers are found. Disable when managing all paths through `crepair.compileIncludePaths`. Takes effect on the next scan."
+          }
+        }
+      },
+      {
+        "title": "Repairs & Reports",
+        "properties": {
+          "crepair.autoRepairLimit": {
+            "type": "number",
+            "default": 5,
+            "minimum": 0,
+            "markdownDescription": "Scan & Fix generates automatically at or below this count. Above it, choose all repairs, the first N, or cancel, preventing many unprompted LLM calls. Plain Scan never generates repairs."
+          },
+          "crepair.report.includeRejectedProposals": {
+            "type": "boolean",
+            "default": false,
+            "markdownDescription": "Add rejected proposed diffs to exported reports as reference material marked NOT applied. Enable when hand-fixing rejected candidates."
+          }
+        }
+      },
+      {
+        "title": "Privacy & Usage",
+        "properties": {
+          "crepair.externalRouteNotice": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Before the first scan, confirm that source code will be sent through OpenRouter to an external LLM provider. Disable to skip this one-time prompt."
+          },
+          "crepair.showCosts": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Query the key's cumulative OpenRouter usage for approximate spend in the status tooltip and Scan & Fix completion. This includes other usage of the same key. When disabled, the usage endpoint is not contacted. The key remains in secure storage, is sent only as an Authorization header and is never logged."
+          }
+        }
+      },
+      {
+        "title": "Editor Menus",
+        "properties": {
+          "crepair.menu.showScan": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Show Scan Current File in the editor context menu. The command remains available in the Command Palette."
+          },
+          "crepair.menu.showScanAndFix": {
+            "type": "boolean",
+            "default": true,
+            "markdownDescription": "Show Scan & Fix Current File in the editor context menu. The command remains available in the Command Palette."
+          }
+        }
+      },
+      {
+        "title": "Bridge (Advanced)",
+        "properties": {
+          "crepair.bridge.pythonPath": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Absolute Python interpreter path for the repair-api bridge. Empty uses `${workspaceFolder}/services/repair-api/.venv/bin/python` for monorepo development. Credentials are passed through environment variables, never command-line arguments. Restart the bridge to apply."
+          },
+          "crepair.bridge.configPath": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Custom certfix YAML used instead of the bundled verified config. Model, Provider Order, Allow Fallbacks and Reasoning Effort still override it. Custom configs are unverified. Restart the bridge to apply."
+          },
+          "crepair.bridge.port": {
+            "type": "number",
+            "default": 0,
+            "markdownDescription": "TCP port on `127.0.0.1`; `0` automatically chooses a free ephemeral port. Restart the bridge to apply."
+          }
+        }
+      }
+    ],
+    "walkthroughs": [
+      {
+        "id": "crepair.gettingStarted",
+        "title": "Get started with C Repair",
+        "description": "Attach your OpenRouter key, set up the local bridge, and review your first CERT C repair.",
+        "steps": [
+          {
+            "id": "crepair.step.apiKey",
+            "title": "Connect your OpenRouter key",
+            "description": "C Repair is bring-your-own-key: scans run through your OpenRouter account. Approve access in the browser, then paste the code OpenRouter shows you.\n[Connect OpenRouter](command:crepair.connectOpenRouter)\nOr paste an existing key instead:\n[Set API Key](command:crepair.setApiKey)",
+            "media": {
+              "markdown": "media/walkthrough/api-key.md"
+            },
+            "completionEvents": [
+              "onCommand:crepair.connectOpenRouter",
+              "onCommand:crepair.setApiKey"
+            ]
+          },
+          {
+            "id": "crepair.step.modelMode",
+            "title": "Choose a model mode",
+            "description": "Default (verified, a few cents per scan) or Free ($0, lower quality, shared pool).\n[Choose Model Mode](command:crepair.chooseModelMode)",
+            "media": {
+              "markdown": "media/walkthrough/model-mode.md"
+            },
+            "completionEvents": [
+              "onCommand:crepair.chooseModelMode"
+            ]
+          },
+          {
+            "id": "crepair.step.bridge",
+            "title": "Set up the local bridge",
+            "description": "One-time: provision the local Python bridge from the bundled wheels. Monorepo developers skip this (the repo venv is auto-detected).\n[Set Up Bridge](command:crepair.setUpBridge)",
+            "media": {
+              "markdown": "media/walkthrough/bridge.md"
+            },
+            "completionEvents": [
+              "onCommand:crepair.setUpBridge"
+            ]
+          },
+          {
+            "id": "crepair.step.firstScan",
+            "title": "Scan a C file",
+            "description": "Open a .c file and scan it. A Context Review may ask you to confirm inferred declarations first.\n[Scan Current File](command:crepair.scanCurrentFile)",
+            "media": {
+              "markdown": "media/walkthrough/first-scan.md"
+            },
+            "completionEvents": [
+              "onCommand:crepair.scanCurrentFile"
+            ]
+          },
+          {
+            "id": "crepair.step.reviewAccept",
+            "title": "Generate repairs and Accept",
+            "description": "Review each fix as a diff, read the validation gates, then accept.\n[Scan & Fix Current File](command:crepair.scanAndFixCurrentFile)",
+            "media": {
+              "markdown": "media/walkthrough/review-accept.md"
+            },
+            "completionEvents": [
+              "onCommand:crepair.scanAndFixCurrentFile",
+              "onCommand:crepair.acceptAllReviewed"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test --import tsx test/*.test.ts",
+    "pretest:electron": "node esbuild.mjs && node esbuild.test.mjs",
+    "test:electron": "node --import tsx test/electron/runTest.ts",
+    "package:vsix": "node esbuild.mjs && vsce package --no-dependencies --baseContentUrl https://raw.githubusercontent.com/safe-c-ai/c-repair/main/apps/vscode --baseImagesUrl https://raw.githubusercontent.com/safe-c-ai/c-repair/main/apps/vscode"
+  },
+  "dependencies": {
+    "@c-repair/contract": "*",
+    "@c-repair/core": "*"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^22.10.7",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.4.1",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.25.12",
+    "mocha": "^10.8.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

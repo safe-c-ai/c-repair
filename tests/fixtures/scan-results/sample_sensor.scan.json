@@ -1,0 +1,112 @@
+{
+  "scan_id": "scan-sensor-001",
+  "source_id": "src-sample-sensor",
+  "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31",
+  "context_revision_id": "ctxrev-sensor-1",
+  "rule_profile": {
+    "id": "cert-c-fixture",
+    "version": "0.1.0"
+  },
+  "adapter": {
+    "id": "fixture",
+    "version": "0.1.0"
+  },
+  "harness": {
+    "id": "fixture",
+    "version": "0.1.0"
+  },
+  "functions": [
+    {
+      "function_id": "fn-scale-reading",
+      "name": "scale_reading",
+      "original_range": {
+        "start_line": 4,
+        "end_line": 7
+      },
+      "findings": [
+        {
+          "finding_id": "find-scale-int32",
+          "kind": "violation",
+          "rule_id": "INT32-C",
+          "rule_summary": "Ensure that operations on signed integers do not result in overflow.",
+          "explanation": "raw * 1000 can overflow int for large values of raw, producing undefined behavior.",
+          "location": {
+            "start_line": 5,
+            "end_line": 5
+          },
+          "assumption_dependent": false
+        }
+      ]
+    },
+    {
+      "function_id": "fn-average-two",
+      "name": "average_two",
+      "original_range": {
+        "start_line": 9,
+        "end_line": 11
+      },
+      "findings": []
+    },
+    {
+      "function_id": "fn-next-state",
+      "name": "next_state",
+      "original_range": {
+        "start_line": 13,
+        "end_line": 18
+      },
+      "findings": []
+    },
+    {
+      "function_id": "fn-over-threshold",
+      "name": "over_threshold",
+      "original_range": {
+        "start_line": 20,
+        "end_line": 23
+      },
+      "findings": [
+        {
+          "finding_id": "find-over-uncertain",
+          "kind": "uncertain",
+          "rule_summary": "Possible unchecked return / range assumption on external sensor value.",
+          "explanation": "read_sensor() and threshold are external; whether the comparison relies on a validated range cannot be determined without the confirmed context, so this is flagged as uncertain rather than a definite violation.",
+          "location": {
+            "start_line": 21,
+            "end_line": 22
+          },
+          "assumption_dependent": true
+        }
+      ]
+    },
+    {
+      "function_id": "fn-copy-label",
+      "name": "copy_label",
+      "original_range": {
+        "start_line": 25,
+        "end_line": 27
+      },
+      "findings": [
+        {
+          "finding_id": "find-copy-str31",
+          "kind": "violation",
+          "rule_id": "STR31-C",
+          "rule_summary": "Guarantee that storage for strings has sufficient space for character data and the null terminator.",
+          "explanation": "strcpy(dst, src) copies src without any bound on dst, so a source longer than the destination buffer overflows it.",
+          "location": {
+            "start_line": 26,
+            "end_line": 26
+          },
+          "assumption_dependent": false
+        }
+      ]
+    },
+    {
+      "function_id": "fn-sample-index",
+      "name": "sample_index",
+      "original_range": {
+        "start_line": 29,
+        "end_line": 32
+      },
+      "findings": []
+    }
+  ]
+}

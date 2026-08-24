@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/source-document.schema.json",
+  "title": "SourceDocument",
+  "description": "Web upload / VS Code active document / fixture を抽象化する core contract。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "source_id",
+    "filename",
+    "language",
+    "content",
+    "content_hash",
+    "size_bytes",
+    "origin"
+  ],
+  "properties": {
+    "source_id": { "type": "string" },
+    "filename": { "type": "string" },
+    "language": { "const": "c" },
+    "content": { "type": "string" },
+    "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "size_bytes": { "type": "integer", "minimum": 0 },
+    "origin": { "enum": ["web_upload", "vscode_document", "fixture"] }
+  }
+}

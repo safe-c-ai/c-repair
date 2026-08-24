@@ -1,0 +1,20 @@
+{
+  "export_id": "export-clean-001",
+  "source": {
+    "filename": "sample_clean.c",
+    "original_hash": "sha256:68c09f5af3c242ebf7066e87aa35e6502c4927f13282ab2ae26f261a5de4c3f0"
+  },
+  "context_revision_id": "ctxrev-clean-1",
+  "rule_profile": { "id": "cert-c-fixture", "version": "0.1.0" },
+  "adapter": { "id": "fixture", "version": "0.1.0" },
+  "harness": { "id": "fixture", "version": "0.1.0" },
+  "accepted": [],
+  "rejected_count": 0,
+  "pending_count": 0,
+  "output": {
+    "filename": "sample_clean.accepted.c",
+    "content_hash": "sha256:68c09f5af3c242ebf7066e87aa35e6502c4927f13282ab2ae26f261a5de4c3f0"
+  },
+  "assumption_dependent": false,
+  "disclaimer": "This output is a repair candidate produced by an automated tool. It is not a guarantee of CERT C or any other standard compliance and must be reviewed before use."
+}

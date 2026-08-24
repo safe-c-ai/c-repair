@@ -1,0 +1,66 @@
+{
+  "set_id": "augset-sensor-001",
+  "source_id": "src-sample-sensor",
+  "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31",
+  "status": "confirmed",
+  "context_revision_id": "ctxrev-sensor-1",
+  "prelude_line_count": 7,
+  "items": [
+    {
+      "item_id": "aug-sensor-read-sensor",
+      "kind": "external_function_declaration",
+      "generated_text": "int read_sensor(int channel);",
+      "current_text": "int read_sensor(int channel);",
+      "provenance": "derived_from_usage",
+      "user_edited": false,
+      "confirmed": true,
+      "rationale": "over_threshold() calls read_sensor(0) but no declaration is visible in the Original source, so a provisional prototype is inferred from the call site.",
+      "usage_evidence": [
+        {
+          "line": 21,
+          "snippet": "int v = read_sensor(0);"
+        }
+      ]
+    },
+    {
+      "item_id": "aug-sensor-threshold",
+      "kind": "external_global",
+      "generated_text": "extern int threshold;",
+      "current_text": "extern int threshold;",
+      "provenance": "derived_from_usage",
+      "user_edited": false,
+      "confirmed": true,
+      "rationale": "threshold is compared against a sensor reading in over_threshold(); its definition lives outside this file.",
+      "usage_evidence": [
+        {
+          "line": 22,
+          "snippet": "return v > threshold;"
+        }
+      ]
+    },
+    {
+      "item_id": "aug-sensor-vehicle-state",
+      "kind": "inferred_type",
+      "generated_text": "typedef enum { STATE_IDLE, STATE_ACTIVE } VehicleState;",
+      "current_text": "typedef enum { STATE_IDLE, STATE_ACTIVE } VehicleState;",
+      "provenance": "llm_inferred",
+      "user_edited": false,
+      "confirmed": true,
+      "rationale": "next_state() uses the type VehicleState and the enum constants STATE_IDLE / STATE_ACTIVE without any definition; an enum is inferred from the comparison and return usage.",
+      "usage_evidence": [
+        {
+          "line": 13,
+          "snippet": "VehicleState next_state(VehicleState current) {"
+        },
+        {
+          "line": 14,
+          "snippet": "if (current == STATE_IDLE) {"
+        },
+        {
+          "line": 15,
+          "snippet": "return STATE_ACTIVE;"
+        }
+      ]
+    }
+  ]
+}

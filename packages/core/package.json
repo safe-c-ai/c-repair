@@ -1,0 +1,16 @@
+{
+  "name": "@c-repair/core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared pure-ESM core (hunk application, conflict detection, prelude synthesis) for the C Repair prototype. Byte-identical between Node validator and web UI.",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./patches": "./src/patches.js",
+    "./prelude": "./src/prelude.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  }
+}

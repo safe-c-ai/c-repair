@@ -1,0 +1,62 @@
+[
+  {
+    "candidate_id": "cand-001",
+    "finding_id": "find-first-str31",
+    "function_id": "fn-load-first",
+    "source_id": "src-sample-conflict",
+    "original_hash": "sha256:abdf66bbd7c77659ade5b6df53599118cf31dc99fe1b2565091db3ae4e7f9745",
+    "context_revision_id": "ctxrev-conflict-1",
+    "status": "repair_ready",
+    "repair_explanation": "Enlarge the shared BUF_SIZE macro and bound the copy in load_first with strncpy plus an explicit null terminator so the fixed buffer cannot overflow.",
+    "hunks": [
+      {
+        "hunk_id": "hunk-first-macro",
+        "start_line": 4,
+        "line_count": 1,
+        "replacement_text": "#define BUF_SIZE 128"
+      },
+      {
+        "hunk_id": "hunk-first-copy",
+        "start_line": 8,
+        "line_count": 1,
+        "replacement_text": "    strncpy(buf, in, BUF_SIZE - 1);\n    buf[BUF_SIZE - 1] = '\\0';"
+      }
+    ],
+    "validations": [
+      { "name": "parse", "status": "pass", "detail": "Augmented C parses without errors." },
+      { "name": "compile", "status": "pass", "detail": "Compiles against the confirmed context prelude." },
+      { "name": "behavior_check", "status": "skipped", "detail": "No behavioral oracle available in Phase 1 fixtures." }
+    ],
+    "model_identity": "fixture/deterministic"
+  },
+  {
+    "candidate_id": "cand-002",
+    "finding_id": "find-second-str31",
+    "function_id": "fn-load-second",
+    "source_id": "src-sample-conflict",
+    "original_hash": "sha256:abdf66bbd7c77659ade5b6df53599118cf31dc99fe1b2565091db3ae4e7f9745",
+    "context_revision_id": "ctxrev-conflict-1",
+    "status": "repair_ready",
+    "repair_explanation": "Enlarge the shared BUF_SIZE macro and bound the copy in load_second with strncpy plus an explicit null terminator so the fixed buffer cannot overflow.",
+    "hunks": [
+      {
+        "hunk_id": "hunk-second-macro",
+        "start_line": 4,
+        "line_count": 1,
+        "replacement_text": "#define BUF_SIZE 128"
+      },
+      {
+        "hunk_id": "hunk-second-copy",
+        "start_line": 14,
+        "line_count": 1,
+        "replacement_text": "    strncpy(buf, in, BUF_SIZE - 1);\n    buf[BUF_SIZE - 1] = '\\0';"
+      }
+    ],
+    "validations": [
+      { "name": "parse", "status": "pass", "detail": "Augmented C parses without errors." },
+      { "name": "compile", "status": "pass", "detail": "Compiles against the confirmed context prelude." },
+      { "name": "behavior_check", "status": "skipped", "detail": "No behavioral oracle available in Phase 1 fixtures." }
+    ],
+    "model_identity": "fixture/deterministic"
+  }
+]

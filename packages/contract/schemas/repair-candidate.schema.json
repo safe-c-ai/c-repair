@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/repair-candidate.schema.json",
+  "title": "RepairCandidate",
+  "description": "1 finding に対する修正候補（validation 内包）。Original C 基準の独立 hunk 集合を持つ。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "finding_id",
+    "function_id",
+    "source_id",
+    "original_hash",
+    "context_revision_id",
+    "status",
+    "repair_explanation",
+    "hunks",
+    "validations"
+  ],
+  "properties": {
+    "candidate_id": { "type": "string" },
+    "finding_id": { "type": "string" },
+    "function_id": { "type": "string" },
+    "source_id": { "type": "string" },
+    "original_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "context_revision_id": { "type": "string" },
+    "status": {
+      "enum": ["repair_ready", "repair_failed", "validation_failed"]
+    },
+    "repair_explanation": { "type": "string" },
+    "hunks": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/hunk" }
+    },
+    "validations": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/validation" }
+    },
+    "model_identity": { "type": "string" }
+  },
+  "definitions": {
+    "hunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hunk_id", "start_line", "line_count", "replacement_text"],
+      "properties": {
+        "hunk_id": { "type": "string" },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "line_count": { "type": "integer", "minimum": 0 },
+        "replacement_text": { "type": "string" }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "enum": ["pass", "fail", "skipped", "not_run"] },
+        "detail": { "type": "string" }
+      }
+    }
+  }
+}

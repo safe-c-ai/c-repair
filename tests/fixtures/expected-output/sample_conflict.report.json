@@ -1,0 +1,31 @@
+{
+  "export_id": "export-conflict-001",
+  "source": {
+    "filename": "sample_conflict.c",
+    "original_hash": "sha256:abdf66bbd7c77659ade5b6df53599118cf31dc99fe1b2565091db3ae4e7f9745"
+  },
+  "context_revision_id": "ctxrev-conflict-1",
+  "rule_profile": { "id": "cert-c-fixture", "version": "0.1.0" },
+  "adapter": { "id": "fixture", "version": "0.1.0" },
+  "harness": { "id": "fixture", "version": "0.1.0" },
+  "accepted": [
+    {
+      "candidate_id": "cand-001",
+      "finding_id": "find-first-str31",
+      "rule_id": "STR31-C",
+      "validations": [
+        { "name": "parse", "status": "pass" },
+        { "name": "compile", "status": "pass" },
+        { "name": "behavior_check", "status": "skipped" }
+      ]
+    }
+  ],
+  "rejected_count": 0,
+  "pending_count": 1,
+  "output": {
+    "filename": "sample_conflict.accepted.c",
+    "content_hash": "sha256:40b20d9d7f509fb2f51a8cf7c139d062aa90c4351735a27a29db3a5222798e07"
+  },
+  "assumption_dependent": false,
+  "disclaimer": "This output is a repair candidate produced by an automated tool. It is not a guarantee of CERT C or any other standard compliance and must be reviewed before use."
+}

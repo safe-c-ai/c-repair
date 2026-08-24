@@ -1,0 +1,15 @@
+# V3b (V3_PACKAGING_DESIGN §2): the vsix ships ONLY the bundled runtime
+# (dist/), the bridge wheels + manifest (bridge-dist/), and the extension
+# manifest/README. Everything below is development-only and never packaged.
+src/**
+test/**
+node_modules/**
+.vscode/**
+dist-test/**
+.vscode-test/**
+esbuild.mjs
+esbuild.test.mjs
+tsconfig.json
+**/*.map
+**/*.ts
+.gitignore

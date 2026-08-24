@@ -1,0 +1,68 @@
+{
+  "export_id": "export-sensor-001",
+  "source": {
+    "filename": "sample_sensor.c",
+    "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31"
+  },
+  "context_revision_id": "ctxrev-sensor-1",
+  "rule_profile": {
+    "id": "cert-c-fixture",
+    "version": "0.1.0"
+  },
+  "adapter": {
+    "id": "fixture",
+    "version": "0.1.0"
+  },
+  "harness": {
+    "id": "fixture",
+    "version": "0.1.0"
+  },
+  "accepted": [
+    {
+      "candidate_id": "cand-001",
+      "finding_id": "find-scale-int32",
+      "rule_id": "INT32-C",
+      "validations": [
+        {
+          "name": "parse",
+          "status": "pass"
+        },
+        {
+          "name": "compile",
+          "status": "pass"
+        },
+        {
+          "name": "behavior_check",
+          "status": "skipped"
+        }
+      ]
+    },
+    {
+      "candidate_id": "cand-002",
+      "finding_id": "find-copy-str31",
+      "rule_id": "STR31-C",
+      "validations": [
+        {
+          "name": "parse",
+          "status": "pass"
+        },
+        {
+          "name": "compile",
+          "status": "pass"
+        },
+        {
+          "name": "behavior_check",
+          "status": "skipped"
+        }
+      ]
+    }
+  ],
+  "rejected_count": 0,
+  "pending_count": 0,
+  "output": {
+    "filename": "sample_sensor.accepted.c",
+    "content_hash": "sha256:44a2ac884f2f294a803a7c55d7e734eccf3dfc1f8c5446705d6166938955fc6e"
+  },
+  "assumption_dependent": false,
+  "disclaimer": "This output is a repair candidate produced by an automated tool. It is not a guarantee of CERT C or any other standard compliance and must be reviewed before use."
+}

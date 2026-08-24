@@ -1,0 +1,17 @@
+{
+  "selection_id": "sel-sensor-001",
+  "source_id": "src-sample-sensor",
+  "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31",
+  "context_revision_id": "ctxrev-sensor-1",
+  "decisions": [
+    {
+      "candidate_id": "cand-001",
+      "decision": "accepted"
+    },
+    {
+      "candidate_id": "cand-002",
+      "decision": "accepted"
+    }
+  ],
+  "conflicts": []
+}

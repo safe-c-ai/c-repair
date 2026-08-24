@@ -1,0 +1,29 @@
+{
+  "scan_id": "scan-clean-001",
+  "source_id": "src-sample-clean",
+  "original_hash": "sha256:68c09f5af3c242ebf7066e87aa35e6502c4927f13282ab2ae26f261a5de4c3f0",
+  "context_revision_id": "ctxrev-clean-1",
+  "rule_profile": { "id": "cert-c-fixture", "version": "0.1.0" },
+  "adapter": { "id": "fixture", "version": "0.1.0" },
+  "harness": { "id": "fixture", "version": "0.1.0" },
+  "functions": [
+    {
+      "function_id": "fn-add",
+      "name": "add",
+      "original_range": { "start_line": 3, "end_line": 5 },
+      "findings": []
+    },
+    {
+      "function_id": "fn-square",
+      "name": "square",
+      "original_range": { "start_line": 7, "end_line": 9 },
+      "findings": []
+    },
+    {
+      "function_id": "fn-clamp",
+      "name": "clamp",
+      "original_range": { "start_line": 11, "end_line": 19 },
+      "findings": []
+    }
+  ]
+}

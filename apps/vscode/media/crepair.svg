@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+  <!-- c-repair mark: open-end wrench whose jaw forms the letter C (proposal 1S,
+       2026-08-23). Solid head = annular C with flat radial jaw faces; single
+       thick straight handle. currentColor keeps it theme-adaptive. -->
+  <path fill="currentColor" stroke="none" d="M19.23 5.81 A6 6 0 1 0 19.23 13.19 L16.86 11.35 A3 3 0 1 1 16.86 7.65 Z"/>
+  <path fill="none" stroke-width="4.2" d="M10.7 13.4 5.9 18.2"/>
+</svg>

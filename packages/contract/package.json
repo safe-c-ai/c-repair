@@ -1,0 +1,11 @@
+{
+  "name": "@c-repair/contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared TypeScript types for the 6 C Repair contract objects (CONTRACT.md / packages/contract/schemas). Raw TS consumed directly by each consumer's tsc; no build step.",
+  "types": "./types.ts",
+  "exports": {
+    ".": "./types.ts"
+  }
+}

@@ -1,0 +1,123 @@
+# DeepSeek V4 Flash via OpenRouter -- the ONLY supported route for c-repair V1
+# (D-018). Copied from the CertFix bundled profile with c-repair adjustments.
+#
+# Required environment:
+#
+#   export OPENROUTER_API_KEY=...
+#
+# Why OpenRouter only (D-018):
+# - BYOK reality: end users get one key usable across models/providers.
+# - The DeepSeek official API exhibited a reasoning-exhaustion failure for the
+#   repair prompt (thinking consumed max_tokens; content came back empty).
+#   Via OpenRouter/DeepInfra the model returns plain content with no reasoning
+#   burn (measured 2026-08-21, 3/3 APPLY_FIX), so no thinking workaround needed.
+#
+# Security note: source code is sent to the routed provider (DeepInfra) via
+# OpenRouter. The extension shows an external-route notice before the first scan.
+
+detection:
+  backend: api
+  prompt_profile: qwen36_certfix_check_v1
+  batch_size: 1
+  qwen36_rule_id_strategy: sequential_top2_p3
+  qwen36_selector_candidate_k: 2
+  qwen36_selector_permutations: 3
+  api:
+    base_url: https://openrouter.ai/api/v1
+    model: deepseek/deepseek-v4-flash-0731
+    api_key_env: OPENROUTER_API_KEY
+    timeout: 120
+    max_tokens: 1024
+    temperature: 0.0
+    retry_attempts: 8
+    retry_initial_delay: 5.0
+    retry_max_delay: 90.0
+    extra_body:
+      provider:
+        order: ["DeepInfra"]
+        allow_fallbacks: false
+      # Detection reasoning is fixed OFF (D-029). A/B on the same play.c input:
+      # reasoning xhigh disturbed the 2-stage detection profile (structured
+      # output + rule identification) -> ~1 violation on average with frequent
+      # uncertain findings (a 0v/2u run observed), and missed real violations.
+      # OFF gave 4v/0u (2v on a rerun), zero uncertain, in ~7s. reasoning is
+      # therefore never enabled for detection, and CREPAIR_REASONING_EFFORT /
+      # crepair.reasoningEffort do NOT apply here (fix role only). With reasoning
+      # off there is no thinking burn, so max_tokens returns to the pre-D-028
+      # 1024 (the D-018 exhaustion mode only arose from thinking) -- faster and
+      # cheaper.
+      reasoning:
+        enabled: false
+
+models:
+  deepseek_v4_flash:
+    backend: api
+    profile: deepseek_v4_flash
+    max_tokens: 8192
+    temperature: 0.0
+    api:
+      base_url: https://openrouter.ai/api/v1
+      model: deepseek/deepseek-v4-flash-0731
+      api_key_env: OPENROUTER_API_KEY
+      timeout: 300
+      max_tokens: 8192
+      temperature: 0.0
+      retry_attempts: 8
+      retry_initial_delay: 5.0
+      retry_max_delay: 90.0
+      extra_body:
+        provider:
+          order: ["DeepInfra"]
+          allow_fallbacks: false
+        # Fix-role reasoning (D-028) applies to repair/validation generate calls
+        # ONLY. /context/infer does NOT inherit it: the bridge clones this role
+        # with reasoning replaced by {enabled: false} for its dedicated infer
+        # backend (see _default_repair_factory). Rationale is the same as
+        # detection's D-029 -- infer is a structured-output task (labelled fenced
+        # declaration blocks), and with reasoning enabled some free-pool
+        # providers (nemotron, observed on lua-lapi/lua-lgc) write the CoT into
+        # `content`, exhausting the infer token budget before any declaration is
+        # emitted (0 items; response tail cut mid-thought). CREPAIR_REASONING_EFFORT
+        # / crepair.reasoningEffort likewise apply to the fix role only, never
+        # to infer.
+        #
+        # D-034: the effort LEVEL below is what users configure, but the bridge
+        # converts it to an explicit `reasoning: {max_tokens: CAP}` right before
+        # sending (max=32768 / xhigh=24576 / high=16384 / medium=8192 /
+        # low=4096 / minimal=1024; off stays {enabled: false}). Measured
+        # 2026-08-22 on 2k-line repairs: with effort-style reasoning the
+        # thinking ADAPTS to the whole completion budget and starves the
+        # content (3/3 finish=length, reasoning 47k/87k/58k tokens); an
+        # explicit max_tokens cap is honored by the provider, and the repair
+        # completion budget then adds exactly that cap on top of the content
+        # term, so content room is structurally guaranteed.
+        reasoning:
+          effort: xhigh
+
+validation:
+  compile:
+    enabled: true
+    command: gcc
+    args: ["-fsyntax-only"]
+    include_paths: []
+    timeout: 30
+  violation_removal:
+    enabled: true
+    detector_role: deepseek_v4_flash
+    method: non_target_advisory
+    max_tokens: 4096
+    override_denylist: ["SIG34-C", "STR31-C"]
+  semantic:
+    enabled: true
+    reviewer_role: deepseek_v4_flash
+    block_on_uncertain: true
+
+fix:
+  simple_repairer_role: deepseek_v4_flash
+  simple_repair_profile: qwen36_27b_complete_repair_rule_guided_v1
+  simple_max_tokens: 8192
+  validate_guided_retry: true
+  retry_max_attempts: 1
+  retry_max_tokens: 8192
+  retry_rule_addenda_v1: true
+  retry_rule_addenda_rule_ids: ["ARR37-C", "CON31-C", "POS48-C", "SIG30-C", "ENV33-C"]

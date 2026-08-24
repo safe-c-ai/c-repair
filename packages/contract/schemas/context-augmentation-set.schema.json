@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/context-augmentation-set.schema.json",
+  "title": "ContextAugmentationSet",
+  "description": "1 つの source に対する補完 context の集合と revision。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "set_id",
+    "source_id",
+    "original_hash",
+    "status",
+    "context_revision_id",
+    "prelude_line_count",
+    "items"
+  ],
+  "properties": {
+    "set_id": { "type": "string" },
+    "source_id": { "type": "string" },
+    "original_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "status": { "enum": ["draft", "confirmed"] },
+    "context_revision_id": { "type": ["string", "null"] },
+    "prelude_line_count": { "type": "integer", "minimum": 0 },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/item" }
+    }
+  },
+  "definitions": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "kind",
+        "generated_text",
+        "current_text",
+        "provenance",
+        "user_edited",
+        "confirmed",
+        "rationale",
+        "usage_evidence"
+      ],
+      "properties": {
+        "item_id": { "type": "string" },
+        "kind": {
+          "enum": [
+            "inferred_type",
+            "external_global",
+            "external_function_declaration",
+            "external_function_stub",
+            "inferred_macro",
+            "opaque_type",
+            "validation_helper",
+            "other"
+          ]
+        },
+        "generated_text": { "type": "string" },
+        "current_text": { "type": "string" },
+        "provenance": {
+          "enum": [
+            "exact_same_file",
+            "derived_from_usage",
+            "llm_inferred",
+            "user_corrected"
+          ]
+        },
+        "user_edited": { "type": "boolean" },
+        "confirmed": { "type": "boolean" },
+        "rationale": { "type": "string" },
+        "usage_evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["line", "snippet"],
+            "properties": {
+              "line": { "type": "integer", "minimum": 1 },
+              "snippet": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

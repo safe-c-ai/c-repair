@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/function-scan-result.schema.json",
+  "title": "FunctionScanResult",
+  "description": "全関数 scan の結果一式（violation inventory）。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scan_id",
+    "source_id",
+    "original_hash",
+    "context_revision_id",
+    "rule_profile",
+    "adapter",
+    "harness",
+    "functions"
+  ],
+  "properties": {
+    "scan_id": { "type": "string" },
+    "source_id": { "type": "string" },
+    "original_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "context_revision_id": { "type": "string" },
+    "rule_profile": { "$ref": "#/definitions/idVersion" },
+    "adapter": { "$ref": "#/definitions/idVersion" },
+    "harness": { "$ref": "#/definitions/idVersion" },
+    "functions": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/function" }
+    }
+  },
+  "definitions": {
+    "idVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_line", "end_line"],
+      "properties": {
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "function": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function_id", "name", "original_range", "findings"],
+      "properties": {
+        "function_id": { "type": "string" },
+        "name": { "type": "string" },
+        "original_range": { "$ref": "#/definitions/range" },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/finding" }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "finding_id",
+        "kind",
+        "rule_summary",
+        "explanation",
+        "location",
+        "assumption_dependent"
+      ],
+      "properties": {
+        "finding_id": { "type": "string" },
+        "kind": { "enum": ["violation", "uncertain"] },
+        "rule_id": { "type": "string" },
+        "rule_summary": { "type": "string" },
+        "explanation": { "type": "string" },
+        "location": { "$ref": "#/definitions/range" },
+        "assumption_dependent": { "type": "boolean" }
+      },
+      "if": { "properties": { "kind": { "const": "violation" } } },
+      "then": { "required": ["rule_id"] }
+    }
+  }
+}

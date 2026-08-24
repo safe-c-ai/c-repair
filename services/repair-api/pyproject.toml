@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "repair-api"
+version = "0.1.0"
+description = "C Repair repair-api: CertFix in-process scan service (Phase 3a)."
+readme = "README.md"
+requires-python = ">=3.10"
+# NOTE: `certfix` is intentionally NOT listed here. It is installed into the
+# venv separately as a non-editable install to avoid writing an egg-info into
+# certfix-dev (see README "venv setup"). Runtime code imports `certfix` but the
+# package is provided by the environment, not resolved from certfix-dev paths.
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "pydantic>=2.6",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "httpx>=0.27",
+    "jsonschema>=4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/repair_api"]
+
+# V3b (round 23): ship the bundled model config INSIDE the package so a
+# wheel-only install (the vsix bootstrap venv) can resolve it via importlib
+# resources. force-include (rather than moving the file under src/) keeps the
+# dev-tree layout — and every existing reference to
+# services/repair-api/config/… — unchanged; only the built wheel gains
+# repair_api/config/.
+[tool.hatch.build.targets.wheel.force-include]
+"config/deepseek-v4-flash-openrouter.yaml" = "repair_api/config/deepseek-v4-flash-openrouter.yaml"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,74 @@
+[
+  {
+    "candidate_id": "cand-001",
+    "finding_id": "find-scale-int32",
+    "function_id": "fn-scale-reading",
+    "source_id": "src-sample-sensor",
+    "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31",
+    "context_revision_id": "ctxrev-sensor-1",
+    "status": "repair_ready",
+    "repair_explanation": "Guard the multiplication so that raw * 1000 cannot overflow int: reject inputs whose scaled value would exceed the representable range before performing the multiply.",
+    "hunks": [
+      {
+        "hunk_id": "hunk-scale-1",
+        "start_line": 5,
+        "line_count": 1,
+        "replacement_text": "    if (raw > INT_MAX / 1000 || raw < INT_MIN / 1000) {\n        return -1;\n    }\n    int scaled = raw * 1000;"
+      }
+    ],
+    "validations": [
+      {
+        "name": "parse",
+        "status": "pass",
+        "detail": "Augmented C parses without errors."
+      },
+      {
+        "name": "compile",
+        "status": "pass",
+        "detail": "Compiles against the confirmed context prelude."
+      },
+      {
+        "name": "behavior_check",
+        "status": "skipped",
+        "detail": "No behavioral oracle available in Phase 1 fixtures."
+      }
+    ],
+    "model_identity": "fixture/deterministic"
+  },
+  {
+    "candidate_id": "cand-002",
+    "finding_id": "find-copy-str31",
+    "function_id": "fn-copy-label",
+    "source_id": "src-sample-sensor",
+    "original_hash": "sha256:bdb6a1aeb681440832c548ded206b0b5b4f123de785aefb4dc35d365af50da31",
+    "context_revision_id": "ctxrev-sensor-1",
+    "status": "repair_ready",
+    "repair_explanation": "Replace the unbounded strcpy with an explicit length-based copy that also transfers the null terminator, keeping the destination write bounded by the measured source length.",
+    "hunks": [
+      {
+        "hunk_id": "hunk-copy-1",
+        "start_line": 26,
+        "line_count": 1,
+        "replacement_text": "    size_t n = strlen(src);\n    memcpy(dst, src, n + 1);"
+      }
+    ],
+    "validations": [
+      {
+        "name": "parse",
+        "status": "pass",
+        "detail": "Augmented C parses without errors."
+      },
+      {
+        "name": "compile",
+        "status": "pass",
+        "detail": "Compiles against the confirmed context prelude."
+      },
+      {
+        "name": "behavior_check",
+        "status": "skipped",
+        "detail": "No behavioral oracle available in Phase 1 fixtures."
+      }
+    ],
+    "model_identity": "fixture/deterministic"
+  }
+]

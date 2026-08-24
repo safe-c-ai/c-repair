@@ -1,0 +1,29 @@
+{
+  "name": "c-repair",
+  "version": "0.0.0",
+  "private": true,
+  "description": "C Repair Web Prototype monorepo (Phase 1).",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "validate": "node tools/validate-fixtures.mjs",
+    "test:core": "npm run test -w @c-repair/core",
+    "test:api": "services/repair-api/.venv/bin/python -m pytest services/repair-api",
+    "test:bytematch": "node tests/harness/export-bytematch.mjs",
+    "dev": "npm run dev -w @c-repair/web",
+    "build": "npm run build -w @c-repair/web",
+    "typecheck": "npm run typecheck -w @c-repair/web",
+    "test:e2e:install": "npm run test:e2e:install -w @c-repair/web",
+    "test:e2e": "npm run test:e2e -w @c-repair/web",
+    "typecheck:vscode": "npm run typecheck -w c-repair",
+    "build:vscode": "npm run build -w c-repair",
+    "test:vscode": "npm run test -w c-repair",
+    "package:vsix": "npm run package:vsix -w c-repair"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  }
+}

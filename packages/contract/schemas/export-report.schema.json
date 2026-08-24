@@ -1,0 +1,88 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://c-repair.local/schemas/export-report.schema.json",
+  "title": "ExportReport",
+  "description": "export 実行結果の report。Accepted Candidate C の hash を含む。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "export_id",
+    "source",
+    "context_revision_id",
+    "rule_profile",
+    "adapter",
+    "harness",
+    "accepted",
+    "rejected_count",
+    "pending_count",
+    "output",
+    "assumption_dependent",
+    "disclaimer"
+  ],
+  "properties": {
+    "export_id": { "type": "string" },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "original_hash"],
+      "properties": {
+        "filename": { "type": "string" },
+        "original_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "context_revision_id": { "type": "string" },
+    "rule_profile": { "$ref": "#/definitions/idVersion" },
+    "adapter": { "$ref": "#/definitions/idVersion" },
+    "harness": { "$ref": "#/definitions/idVersion" },
+    "accepted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["candidate_id", "finding_id", "rule_id", "validations"],
+        "properties": {
+          "candidate_id": { "type": "string" },
+          "finding_id": { "type": "string" },
+          "rule_id": { "type": "string" },
+          "validations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["name", "status"],
+              "properties": {
+                "name": { "type": "string" },
+                "status": { "enum": ["pass", "fail", "skipped", "not_run"] },
+                "detail": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "rejected_count": { "type": "integer", "minimum": 0 },
+    "pending_count": { "type": "integer", "minimum": 0 },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filename", "content_hash"],
+      "properties": {
+        "filename": { "type": "string" },
+        "content_hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+      }
+    },
+    "assumption_dependent": { "type": "boolean" },
+    "disclaimer": { "type": "string" }
+  },
+  "definitions": {
+    "idVersion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    }
+  }
+}
