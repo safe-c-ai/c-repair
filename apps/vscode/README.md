@@ -8,7 +8,7 @@ C Repair scans a single C file for CERT® C violations, generates repair candida
 
 ## Quick start (3 steps)
 
-Install the `.vsix` (`Extensions: Install from VSIX…` — this build is distributed locally; the **Get started with C Repair** walkthrough opens on first activation), then:
+Install **C Repair** from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=safe-c-ai.c-repair) (the **Get started with C Repair** walkthrough opens on first activation), then:
 
 1. **Key** — `C Repair: Connect OpenRouter`: approve in the browser, paste the one-time code into the VS Code prompt (works locally, under WSL, and on remotes). Or paste an existing key with `C Repair: Set API Key`.
 2. **Bridge** — `C Repair: Set Up Bridge` (one-time; provisions a private Python env from the bundled wheels, then verifies `/health`).
