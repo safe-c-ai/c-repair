@@ -25,7 +25,7 @@ function goodBody(overrides: Record<string, unknown> = {}): Record<string, unkno
       rules_count: 115,
       gates: ['format', 'compile', 'violation_removal', 'semantic', 'regression'],
       routes: ['api'],
-      model: 'deepseek/deepseek-v4-flash-0731',
+      model: 'deepseek/deepseek-v4.1-flash',
       provider_order: ['DeepInfra'],
       reasoning_effort: 'xhigh',
     },
@@ -101,7 +101,7 @@ test('checkHealthCompat: malformed body => fatal', () => {
 test('parseHealth captures effective model + provider_order when present', () => {
   const h = parseHealth(goodBody());
   assert.ok(h);
-  assert.equal(h?.capabilities.model, 'deepseek/deepseek-v4-flash-0731');
+  assert.equal(h?.capabilities.model, 'deepseek/deepseek-v4.1-flash');
   assert.deepEqual(h?.capabilities.provider_order, ['DeepInfra']);
 });
 
@@ -155,7 +155,7 @@ test('effectiveProviderLabel: empty / missing order => automatic routing', () =>
 
 test('effectiveModelLabel: falls back to "unknown" when absent', () => {
   const h = parseHealth(goodBody());
-  assert.equal(effectiveModelLabel(h!.capabilities), 'deepseek/deepseek-v4-flash-0731');
+  assert.equal(effectiveModelLabel(h!.capabilities), 'deepseek/deepseek-v4.1-flash');
   assert.equal(effectiveModelLabel(undefined), 'unknown');
 });
 

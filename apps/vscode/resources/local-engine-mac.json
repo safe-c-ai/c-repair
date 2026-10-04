@@ -1,0 +1,12 @@
+{
+  "id": "darwin-arm64-metal-b10883-v1",
+  "platform": "darwin",
+  "arch": "arm64",
+  "minimumOS": "13.3",
+  "sourceCommit": "91f6a6cf361385700bbe15981f0f39909df77498",
+  "archiveRoot": "llama-b10883",
+  "filename": "llama-b10883-bin-macos-arm64.tar.gz",
+  "bytes": 11141038,
+  "sha256": "a83a885bf2fa4ffb7c11b3c8c6ed7e7ff8f7bd61733b1d4fa2ce8ec7cb587588",
+  "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/llama-b10883-bin-macos-arm64.tar.gz"
+}

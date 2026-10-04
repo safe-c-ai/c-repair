@@ -16,6 +16,7 @@ const EXPECTED_COMMANDS = [
   'crepair.setApiKey',
   'crepair.clearApiKey',
   'crepair.generateRepair',
+  'crepair.openPracticeSample',
 ];
 
 export function activation(rootSuite: Mocha.Suite): void {

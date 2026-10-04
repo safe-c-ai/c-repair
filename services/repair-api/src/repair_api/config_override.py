@@ -91,15 +91,13 @@ class EffectiveConfig:
     ``provider_order`` is the effective ``extra_body.provider.order`` after
     overrides — an empty list means OpenRouter automatic routing (no pin).
     ``config_source`` is the path the YAML was read from (bundled or user).
-    ``reasoning_effort`` is the **fix role's** effective reasoning level (D-029:
-    reasoning applies to the repair/validation fix role only): one of
+    ``reasoning_effort`` is the shared repair/detection reasoning level: one of
     ``max``/``xhigh``/``high``/``medium``/``low``/``minimal`` when
     ``extra_body.reasoning.effort`` is set, ``off`` when reasoning is disabled
     (``enabled: false``), or ``default``
     when no reasoning is configured at all. ``detection_reasoning`` is the same
     read-back for the detection role, reported separately so /health can show
-    that detection reasoning is independent of the fix-role setting (bundled: off,
-    D-029).
+    that detection uses the same setting.
     """
 
     config: Any  # certfix.config.Config
@@ -184,8 +182,7 @@ def _apply_reasoning_override(api: Any, effort: str) -> None:
     The whole ``reasoning`` block is replaced (not merged) so a switch between
     ``off`` and an effort level never leaves a stale key behind.
 
-    D-029 scope: only ever called on the **fix role(s)** (``models.*``); detection
-    reasoning is fixed off in the bundled config and is never overridden here.
+    Applied to fix roles first, then synchronized to detection.
     """
     extra_body = api.extra_body if isinstance(api.extra_body, dict) else {}
     if effort == _REASONING_OFF:
@@ -298,6 +295,10 @@ def load_effective_config(
 
     env = os.environ if env is None else env
 
+    if env.get('CREPAIR_ROUTE') == 'local':
+        from .local import effective_local
+        return effective_local(Config.load(config_path), config_path, env)
+
     source_path = Path(env[CONFIG_PATH_ENV]) if env.get(CONFIG_PATH_ENV) else config_path
     cfg = Config.load(source_path)
 
@@ -369,8 +370,7 @@ def load_effective_config(
         # Deep-copy so an override never mutates a shared/cached Config instance.
         cfg = copy.deepcopy(cfg)
         # Model / provider apply to detection + every fix role (D-019). Reasoning
-        # applies to the fix role(s) ONLY (D-029): detection reasoning is fixed
-        # off in the bundled config and must not be re-enabled by this env var.
+        # is applied to fix roles here and synchronized to detection below.
         _apply_api_overrides(
             cfg.detection.api,
             model_id=model_id,
@@ -394,6 +394,19 @@ def load_effective_config(
                 _apply_reasoning_override(role.api, reasoning_effort)
             if apply_policy:
                 _apply_provider_policy(role.api, provider_policy)  # type: ignore[arg-type]
+
+    # One reasoning setting for repair, detection and violation-removal checks.
+    # Declaration completion keeps its separate off setting in the factory.
+    cfg = copy.deepcopy(cfg)
+    repair_role = cfg.models.get(cfg.fix.simple_repairer_role) or next(iter(cfg.models.values()), None)
+    if repair_role is not None:
+        extra = dict(cfg.detection.api.extra_body or {})
+        reasoning = (repair_role.api.extra_body or {}).get("reasoning")
+        if reasoning is None:
+            extra.pop("reasoning", None)
+        else:
+            extra["reasoning"] = copy.deepcopy(reasoning)
+        cfg.detection.api.extra_body = extra
 
     # ``reasoning_effort`` reports the fix role's effective value (D-029); the
     # detection role is reported separately. Read from the first fix role (all

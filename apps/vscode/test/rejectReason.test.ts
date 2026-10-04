@@ -83,7 +83,7 @@ function candidate(overrides: Partial<RepairCandidate> = {}): RepairCandidate {
       { hunk_id: 'h1', start_line: 2, line_count: 1, replacement_text: '  int c;\n  if (__builtin_add_overflow(a, b, &c)) return -1;' },
     ],
     validations: [val('format', 'pass'), val('compile', 'pass'), val('semantic', 'pass')],
-    model_identity: 'deepseek/deepseek-v4-flash-0731',
+    model_identity: 'deepseek/deepseek-v4.1-flash',
     ...overrides,
   };
 }
@@ -235,7 +235,7 @@ function reportInput(
     expectedHash: sha(ORIGINAL),
     extensionVersion: '0.1.0',
     ruleProfile: { id: 'cert-c', version: '1' },
-    model: { model: 'deepseek/deepseek-v4-flash-0731', mode: 'Preset' },
+    model: { model: 'deepseek/deepseek-v4.1-flash', mode: 'Preset' },
     scan: scanResult(functions),
     contextStillMissing: undefined,
     contextProvenance: [],
@@ -312,7 +312,7 @@ function feedbackInput(
     originalHash: sha(ORIGINAL),
     extensionVersion: '0.1.0',
     ruleProfile: { id: 'cert-c', version: 'certfix-0.4.1-bundled' },
-    model: 'deepseek/deepseek-v4-flash-0731',
+    model: 'deepseek/deepseek-v4.1-flash',
     mode: 'Preset',
     scan: scanResult(functions),
     candidateForFinding: (id) => byFinding.get(id),
@@ -329,7 +329,7 @@ test('feedback JSON: versioned envelope + required identity keys', () => {
   assert.equal(data.filename, 'a.c');
   assert.equal(data.extension_version, '0.1.0');
   assert.deepEqual(data.rule_set, { id: 'cert-c', version: 'certfix-0.4.1-bundled' });
-  assert.deepEqual(data.model, { id: 'deepseek/deepseek-v4-flash-0731', mode: 'Preset' });
+  assert.deepEqual(data.model, { id: 'deepseek/deepseek-v4.1-flash', mode: 'Preset' });
   assert.deepEqual(data.integrity, { original_hash: sha(ORIGINAL) });
   assert.ok(Array.isArray(data.findings));
 });

@@ -55,9 +55,9 @@ export function normalizeProviderPolicy(value: string | undefined): ProviderPoli
   return value === 'balanced' || value === 'private-cheap' ? value : DEFAULT_PROVIDER_POLICY;
 }
 
-/** The verified defaults (must match package.json contributes.configuration). */
+/** The release defaults (must match package.json contributes.configuration). */
 export const DEFAULT_OVERRIDES: OverrideSettings = {
-  model: 'deepseek/deepseek-v4-flash-0731',
+  model: 'deepseek/deepseek-v4.1-flash',
   providerOrder: ['DeepInfra'],
   allowFallbacks: false,
   configPath: '',
@@ -68,11 +68,11 @@ export const DEFAULT_OVERRIDES: OverrideSettings = {
 /**
  * The model mode (D-031): the single source of truth for the model/provider
  * construction, from `crepair.modelMode`.
- *   - `default` — the bundled verified model (usage-based); model/provider settings ignored.
+ *   - `default` — the bundled preset model (usage-based); model/provider settings ignored.
  *   - `free`    — the free model (`crepair.freeModel`, $0) with automatic routing.
  *   - `custom`  — use the `crepair.model` / providerOrder / allowFallbacks settings verbatim.
  */
-export type ModelMode = 'default' | 'free' | 'custom';
+export type ModelMode = 'default' | 'free' | 'custom' | 'local';
 
 /** The default model mode (must match package.json `crepair.modelMode`). */
 export const DEFAULT_MODEL_MODE: ModelMode = 'default';
@@ -102,7 +102,7 @@ export function modeDisplayLower(mode: ModelMode): string {
 
 /** Normalize an arbitrary string to a valid ModelMode, defaulting on anything else. */
 export function normalizeModelMode(value: string | undefined): ModelMode {
-  return value === 'free' || value === 'custom' || value === 'default'
+  return value === 'local' || value === 'free' || value === 'custom' || value === 'default'
     ? value
     : DEFAULT_MODEL_MODE;
 }
@@ -121,7 +121,7 @@ function sameStringArray(a: string[], b: string[]): boolean {
 
 /**
  * Build the override env fragment from settings. Returns only the vars that
- * differ from the verified defaults (empty object when nothing changed), so a
+ * differ from the release defaults (empty object when nothing changed), so a
  * default configuration spawns the bridge with no CREPAIR_* override and the
  * effective config stays bit-identical to the bundled one (D-019).
  *
@@ -237,6 +237,7 @@ export function buildModeOverrideEnv(
   settings: OverrideSettings,
   freeModel: string,
 ): Record<string, string> {
+  if (mode === 'local') return {};
   if (mode === 'custom') {
     // Legacy per-setting mapping already covers the common vars.
     return buildOverrideEnv(settings);

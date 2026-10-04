@@ -523,6 +523,23 @@ def test_extract_missing_symbols_empty_when_no_match() -> None:
     assert repair_adapter._extract_missing_symbols("nothing here") == []
 
 
+def test_extract_clang_missing_symbols_in_diagnostic_order() -> None:
+    stderr = (
+        "x.c:2:5: error: use of undeclared identifier 'Sensor'\n"
+        "x.c:3:13: error: call to undeclared function 'read_sensor'; ISO C99 and later do not support implicit function declarations\n"
+        "x.c:4:13: error: use of undeclared identifier 'THRESHOLD'\n"
+        "x.c:5:16: error: use of undeclared identifier 'limit'\n"
+        "x.c:6:16: error: use of undeclared identifier 'Sensor'\n"
+    )
+    assert repair_adapter._extract_missing_symbols(stderr) == ['Sensor', 'read_sensor', 'THRESHOLD', 'limit']
+
+
+def test_clang_missing_headers_stubs_only_quoted_includes() -> None:
+    stderr = "x.c:1:10: fatal error: 'proj_defs.h' file not found\nx.c:2:10: fatal error: 'system.h' file not found\n"
+    source = '#include "proj_defs.h"\n#include <system.h>\n'
+    assert repair_adapter._extract_missing_local_headers(stderr, source) == ['proj_defs.h']
+
+
 # --- deterministic missing standard-include completion (sample11) ------------
 
 

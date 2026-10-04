@@ -1,3 +1,13 @@
+import { openUserGuide } from './ui/localSettingsGuide';
+import { openPracticeSample } from './ui/practiceSample';
+import { onboardingState, type OnboardingState } from './ui/onboardingState';
+import { inspectTemplateReasoning, templateReasoningLabel } from './bridge/templateReasoning';
+import { reasoningKey } from './bridge/localReasoning';
+import { editLocalModelSettings } from './ui/localModelSettings';
+import type { LocalSettings } from './bridge/localSettings';
+import { LOCAL_SETUP_KEYS } from './ui/localSetupReview';
+import { localSetupWizard } from './ui/localSetup';
+import { localErrorSetting } from './bridge/localSettings';
 // C Repair VS Code extension entry point (VSCODE_V1B_DESIGN.md §1–§6, V1b-1).
 //
 // Wires together: bridge lifecycle (BridgeManager), the scan flow (infer →
@@ -15,7 +25,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 
-import { API_KEY_SECRET, BridgeError, BridgeManager, type BridgeHandle } from './bridge/BridgeManager';
+import { API_KEY_SECRET, BridgeError, BridgeManager, readLocalSettings, type BridgeHandle } from './bridge/BridgeManager';
 import {
   runBootstrap,
   BootstrapError,
@@ -165,7 +175,7 @@ import {
   OAuthError,
   type OAuthDeps,
 } from './auth/openrouterOAuth';
-import { initLog, logBlock, logError, logInfo, logShow } from './log';
+import { initLog, logBlock, logError, logInfo, logShow, logWarn } from './log';
 import type {
   SourceDocument,
   Finding,
@@ -285,6 +295,7 @@ export interface CRepairTestApi {
   getApiKey(): Thenable<string | undefined>;
   /** D-031: whether the model-mode selection flag is set (to assert it was recorded). */
   getModelModeChosen(): boolean;
+  getOnboardingState(): OnboardingState;
 }
 
 export function activate(context: vscode.ExtensionContext): CRepairTestApi | undefined {
@@ -294,7 +305,7 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
   extensionContext = context;
   // V3a (D-036): the globalStorage path hosts the provisioned bridge venv
   // (resolution step ③, populated by "C Repair: Set Up Bridge").
-  bridge = new BridgeManager(context.secrets, context.globalStorageUri.fsPath);
+  bridge = new BridgeManager(context.secrets, context.globalStorageUri.fsPath, context.extensionUri.fsPath);
   diagnostics = createDiagnostics();
   tree = new CRepairTreeProvider();
   statusBar = new StatusBar();
@@ -324,10 +335,11 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
   // sequenced so a legacy state the migration just resolved is not flagged.
   void migrateLegacyFreeModel().then(() => maybeShowStartupConfigNotice());
 
-  // Populate the always-on model line immediately from settings so the header shows
-  // the effective model / tier / reasoning before the first scan; a scan replaces it
-  // with the live /health value (applyCapabilities).
+  // Keep effective model information ready from settings. The empty results view
+  // displays setup/help actions; a scan renders the model header and replaces its
+  // settings values with the live /health value (applyCapabilities).
   refreshModelLine();
+  void refreshOnboardingState();
 
   context.subscriptions.push(
     diagnostics,
@@ -336,7 +348,11 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
     treeView,
     vscode.workspace.registerTextDocumentContentProvider(CREPAIR_SCHEME, contentProvider),
     vscode.languages.registerCodeLensProvider({ scheme: CREPAIR_SCHEME }, validationLens),
+    context.secrets.onDidChange(e => {
+      if (e.key === API_KEY_SECRET) void refreshOnboardingState();
+    }),
     bridge.onStateChange((s) => {
+      void refreshOnboardingState();
       if (s === 'starting') statusBar.set('starting');
       else if (s === 'error') statusBar.set('error');
       else if (s === 'ready') void refreshUsage(); // D-025: refresh spend when the bridge comes up
@@ -367,6 +383,15 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
     ),
     // Open the OpenRouter model page for the current effective model, which lists the
     // providers serving it. Uses crepair.model (or the verified default when blank).
+    vscode.commands.registerCommand('crepair.openUserGuide', () => openUserGuide(context)),
+    vscode.commands.registerCommand('crepair.openPracticeSample', async () => {
+      try {
+        return await openPracticeSample(context);
+      } catch (error) {
+        void vscode.window.showErrorMessage(`C Repair: could not open the practice sample — ${error instanceof Error ? error.message : String(error)}`);
+        return undefined;
+      }
+    }),
     vscode.commands.registerCommand('crepair.openModelProviders', () => openModelProviders()),
     vscode.commands.registerCommand('crepair.setApiKey', () => setApiKey(context)),
     vscode.commands.registerCommand('crepair.clearApiKey', () => clearApiKey(context)),
@@ -394,6 +419,17 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
     vscode.commands.registerCommand('crepair.exportFeedbackData', () =>
       exportFeedbackData(context),
     ),
+    vscode.commands.registerCommand('crepair.stopLocalModel', async () => {
+      if (readModelMode() !== 'local') return;
+      clearLiveSessionState();
+      stopUsagePoll();
+      await bridge.stop();
+      applyCapabilities(undefined);
+      statusBar.set('ready');
+      void vscode.window.showInformationMessage('C Repair: local model stopped; memory released. It will load again on the next scan.');
+    }),
+    vscode.commands.registerCommand('crepair.setUpLocal', () => setUpLocal()),
+    vscode.commands.registerCommand('crepair.localSettings', (focus?: string) => openLocalModelSettings(focus)),
     vscode.commands.registerCommand('crepair.setUpBridge', () => setUpBridge()),
     vscode.commands.registerCommand('crepair.rejectCandidate', (node?: CRepairNode) =>
       rejectCandidate(node),
@@ -467,6 +503,7 @@ export function activate(context: vscode.ExtensionContext): CRepairTestApi | und
       },
       getApiKey: () => context.secrets.get(API_KEY_SECRET),
       getModelModeChosen: () => context.globalState.get<boolean>(MODEL_MODE_CHOSEN_KEY) === true,
+      getOnboardingState: () => ({ ...currentOnboardingState }),
     };
   }
   return undefined;
@@ -476,6 +513,26 @@ export function deactivate(): void {
   if (staleTimer) clearTimeout(staleTimer);
   bridge?.kill();
   logInfo('C Repair deactivated.');
+}
+
+let currentOnboardingState: OnboardingState = onboardingState('default', false, false, false);
+let onboardingRefresh = 0;
+async function refreshOnboardingState(): Promise<void> {
+  const context = extensionContext;
+  if (!context) return;
+  const revision = ++onboardingRefresh;
+  try {
+    const key = await context.secrets.get(API_KEY_SECRET);
+    if (revision !== onboardingRefresh) return;
+    const mode = readModelMode();
+    const selected = !shouldPromptModelMode(
+      context.globalState.get<boolean>(MODEL_MODE_CHOSEN_KEY) === true, mode, readConfiguredModel());
+    currentOnboardingState = onboardingState(mode, Boolean(key), selected, bridge.state === 'ready');
+    await Promise.all(Object.entries(currentOnboardingState).map(([name, value]) =>
+      vscode.commands.executeCommand('setContext', `crepair.walkthrough.${name}`, value)));
+  } catch (err) {
+    logWarn(`Could not refresh onboarding status: ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // --- scan flow --------------------------------------------------------------
@@ -512,52 +569,54 @@ async function scanCurrentFile(
     return;
   }
 
-  // API key required (BYOK). Offer Connect (browser OAuth) / Enter manually, plus
-  // a "$OPENROUTER_API_KEY" option when that env var is present (developer path).
-  const apiKey = await context.secrets.get(API_KEY_SECRET);
-  if (!apiKey) {
-    const envKey = process.env.OPENROUTER_API_KEY?.trim();
-    const actions = envKey
-      ? ['Connect', 'Enter manually', 'Use $OPENROUTER_API_KEY']
-      : ['Connect', 'Enter manually'];
-    const pick = await vscode.window.showInformationMessage(
-      'C Repair needs an OpenRouter API key to scan.',
-      ...actions,
-    );
-    if (pick === 'Connect') await connectOpenRouter(context);
-    else if (pick === 'Enter manually') await enterKeyManually(context);
-    else if (pick === 'Use $OPENROUTER_API_KEY' && envKey)
-      await storeAndVerifyKey(context, envKey, 'Connected ✓');
-    return;
+  if (readModelMode() !== 'local') {
+    // API key required (BYOK). Offer Connect (browser OAuth) / Enter manually, plus
+    // a "$OPENROUTER_API_KEY" option when that env var is present (developer path).
+    const apiKey = await context.secrets.get(API_KEY_SECRET);
+    if (!apiKey) {
+      const envKey = process.env.OPENROUTER_API_KEY?.trim();
+      const actions = envKey
+        ? ['Connect', 'Enter manually', 'Use $OPENROUTER_API_KEY']
+        : ['Connect', 'Enter manually'];
+      const pick = await vscode.window.showInformationMessage(
+        'C Repair needs an OpenRouter API key to scan.',
+        ...actions,
+      );
+      if (pick === 'Connect') await connectOpenRouter(context);
+      else if (pick === 'Enter manually') await enterKeyManually(context);
+      else if (pick === 'Use $OPENROUTER_API_KEY' && envKey)
+        await storeAndVerifyKey(context, envKey, 'Connected ✓');
+      return;
+    }
+
+    // One-time external-route notice (D-016): source code is sent to an LLM.
+    const proceed = await confirmExternalRoute(context);
+    if (!proceed) return;
+
+    // D-031: first-run model-mode choice. A scan is a billing boundary, so if the user
+    // dismissed (Esc) the picker at key-set time it must appear here — a credited key
+    // never starts a billable default-model scan before the user has chosen once.
+    // FAIL-CLOSED: when the picker is dismissed again (no mode settled), the scan is
+    // aborted — continuing would silently bill the preset model without consent. The
+    // flag stays unrecorded, so every scan attempt re-asks until a mode is chosen.
+    const modeSettled = await maybePromptModelMode(context);
+    if (!modeSettled) {
+      void vscode.window
+        .showInformationMessage(MODEL_MODE_GATE_MESSAGE, MODEL_MODE_GATE_ACTION)
+        .then((pick) => {
+          if (pick === MODEL_MODE_GATE_ACTION) {
+            void vscode.commands.executeCommand('crepair.chooseModelMode');
+          }
+        });
+      logInfo('Scan aborted: no model mode chosen yet (fail-closed billing gate).');
+      return;
+    }
+
+    // B (free-model auto-run): a key with no credits (is_free_tier) auto-switches the
+    // bridge to the free model (warn once), and a key that later gains credits reverts
+    // to the normal construction. Best-effort — a query failure leaves things as-is.
+    if (readModelMode() !== 'local') await applyFreeModelSwitch(context, apiKey);
   }
-
-  // One-time external-route notice (D-016): source code is sent to an LLM.
-  const proceed = await confirmExternalRoute(context);
-  if (!proceed) return;
-
-  // D-031: first-run model-mode choice. A scan is a billing boundary, so if the user
-  // dismissed (Esc) the picker at key-set time it must appear here — a credited key
-  // never starts a billable default-model scan before the user has chosen once.
-  // FAIL-CLOSED: when the picker is dismissed again (no mode settled), the scan is
-  // aborted — continuing would silently bill the preset model without consent. The
-  // flag stays unrecorded, so every scan attempt re-asks until a mode is chosen.
-  const modeSettled = await maybePromptModelMode(context);
-  if (!modeSettled) {
-    void vscode.window
-      .showInformationMessage(MODEL_MODE_GATE_MESSAGE, MODEL_MODE_GATE_ACTION)
-      .then((pick) => {
-        if (pick === MODEL_MODE_GATE_ACTION) {
-          void vscode.commands.executeCommand('crepair.chooseModelMode');
-        }
-      });
-    logInfo('Scan aborted: no model mode chosen yet (fail-closed billing gate).');
-    return;
-  }
-
-  // B (free-model auto-run): a key with no credits (is_free_tier) auto-switches the
-  // bridge to the free model (warn once), and a key that later gains credits reverts
-  // to the normal construction. Best-effort — a query failure leaves things as-is.
-  await applyFreeModelSwitch(context, apiKey);
 
   const content = doc.getText();
   const filename = fileBasename(doc.fileName);
@@ -615,14 +674,15 @@ async function scanCurrentFile(
         {
           location: vscode.ProgressLocation.Notification,
           title: 'C Repair: inferring context',
-          cancellable: false,
+          cancellable: true,
         },
-        async (progress) => {
+        async (progress, token) => {
+          const abort = abortControllerForToken(token);
           statusBar.set('scanning');
           progress.report({ message: 'starting bridge…' });
-          const h = await ensureBridgeForScan(true);
+          const h = await ensureBridgeForScan(true, abort.signal);
           progress.report({ message: 'inferring context…' });
-          const d = await h.client.inferContext(source, compileIncludePaths);
+          const d = await h.client.inferContext(source, compileIncludePaths, abort.signal);
           return { handle: h, draft: d };
         },
       ),
@@ -692,9 +752,17 @@ async function afterScanComplete(runFix: boolean): Promise<void> {
  * token counters are reset and the cost baseline captured before any LLM call;
  * confirm/skip (which resume an already-begun session) pass false.
  */
-async function ensureBridgeForScan(beginSession = false): Promise<BridgeHandle> {
+async function ensureBridgeForScan(beginSession = false, signal?: AbortSignal): Promise<BridgeHandle> {
   statusBar.set('scanning');
-  const handle = await bridge.ensureStarted();
+  const handle = signal ? await bridge.ensureStarted(signal)
+    : readModelMode() === 'local' && bridge.state !== 'ready'
+    ? await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification,
+        title: 'C Repair: loading local model on the extension host', cancellable: true },
+      async (_progress, token) => {
+        const abort = abortControllerForToken(token);
+        return bridge.ensureStarted(abort.signal);
+      })
+    : await bridge.ensureStarted();
   applyCapabilities(handle.health.capabilities);
   if (beginSession) await beginUsageSession(handle);
   return handle;
@@ -721,11 +789,12 @@ async function runScanWithConfirmed(
     {
       location: vscode.ProgressLocation.Notification,
       title: 'C Repair: scanning current file',
-      cancellable: false,
+      cancellable: true,
     },
-    async (progress) => {
+    async (progress, token) => {
+      const abort = abortControllerForToken(token);
       progress.report({ message: 'scanning functions…' });
-      const scan = await handle.client.scan(source, confirmed, compileIncludePaths);
+      const scan = await handle.client.scan(source, confirmed, compileIncludePaths, abort.signal);
 
       // Build the session (one file / one scan; replace any prior one). Keep the
       // source + confirmed context set so /repair can be replayed later (the
@@ -905,7 +974,7 @@ function readShowCosts(): boolean {
  * throws. The key travels only in the Authorization header inside fetchKeyUsage.
  */
 async function currentUsage(): Promise<number | null> {
-  if (!extensionContext) return null;
+  if (!extensionContext || readModelMode() === 'local') return null;
   // TEST-ONLY invariant: when attached to the offline fixture bridge, NEVER contact
   // openrouter.ai. The usage endpoint is external (openrouter.ai direct, not the
   // bridge), so the fixture-bridge hook cannot intercept it; disabling it here keeps
@@ -957,20 +1026,34 @@ function applyCapabilities(caps: HealthCapabilities | undefined): void {
  * construction (`bridge.onFreeModel`). Safe to call any time the effective model,
  * reasoning, or mode could have changed.
  */
+let localHeaderRevision = 0;
 function refreshModelLine(): void {
+  const revision = ++localHeaderRevision;
   const cfg = vscode.workspace.getConfiguration('crepair');
   const mode = readModelMode();
+  const local = mode === 'local' ? readLocalSettings() : undefined;
   tree.setModelLine(
     modelLineText({
       caps: lastCapabilities,
       mode,
       configuredModel: cfg.get<string>('model', DEFAULT_OVERRIDES.model),
       freeModel: readFreeModel(),
-      configuredReasoning: cfg.get<string>('reasoningEffort', DEFAULT_OVERRIDES.reasoningEffort),
+      localSettings: local,
+      localReasoning: bridge?.localReasoning,
+      configuredLocalModel: local?.modelName,
+      configuredReasoning: local?.effort ?? cfg.get<string>('reasoningEffort', DEFAULT_OVERRIDES.reasoningEffort),
       // FREE tag when the mode is free OR the creditless auto-fallback is active.
       onFreeModel: mode === 'free' || (bridge?.onFreeModel ?? false),
     }),
   );
+  if (local) void inspectTemplateReasoning(local).then(cap => {
+    if (revision !== localHeaderRevision || !cap.known) return;
+    tree.setModelLine(modelLineText({
+      caps: lastCapabilities, mode: 'local', localSettings: local,
+      localReasoning: { key: reasoningKey(local), repair: templateReasoningLabel(local, cap), detection: templateReasoningLabel(local, cap, true) },
+      configuredModel: '', freeModel: '', configuredReasoning: local.effort, onFreeModel: false,
+    }));
+  });
 }
 
 /**
@@ -1049,7 +1132,8 @@ async function pollSessionUsageOnce(): Promise<void> {
   if (!sessionActive) return;
   let usage: SessionUsage | null = null;
   try {
-    const handle = await bridge.ensureStarted();
+    const handle = bridge.currentHandle;
+    if (!handle) return; // polling must never restart a stopped/crashed local model
     usage = await handle.client.getUsage();
   } catch {
     usage = null;
@@ -1244,7 +1328,7 @@ async function runAutoRepairPipeline(active: ScanSession): Promise<void> {
         const t = pending[i];
         progress.report({ message: `Generating repairs (${i + 1}/${total})…` });
         try {
-          const handle = await bridge.ensureStarted();
+          const handle = await bridge.ensureStarted(abort.signal);
           const compileIncludePaths = buildCompileIncludePaths(
             readIncludePathSettings(),
             active.snapshot.fileDir,
@@ -1271,6 +1355,7 @@ async function runAutoRepairPipeline(active: ScanSession): Promise<void> {
             logInfo('Auto-repair pipeline cancelled by user.');
             break;
           }
+          if (showLocalError(err)) break;
           // A failed generation is kept as guidance but must not abort the pipeline.
           logError(
             `Auto-repair generation failed for ${t.fn.name}: ` +
@@ -1342,11 +1427,12 @@ async function openCandidateDiff(candidateId: string): Promise<void> {
 function execCapture(
   cmd: string,
   args: string[],
-  opts?: { shell?: boolean },
+  opts?: { shell?: boolean; signal?: AbortSignal },
 ): Promise<ExecResult> {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, {
       shell: opts?.shell === true,
+      signal: opts?.signal,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     let stdout = '';
@@ -1383,9 +1469,9 @@ async function confirmInstallUvPick(): Promise<boolean> {
 }
 
 /** The production BootstrapDeps (unit tests fake these — see bootstrap.ts). */
-function bootstrapDeps(progress: vscode.Progress<{ message?: string }>): BootstrapDeps {
+function bootstrapDeps(progress: vscode.Progress<{ message?: string }>, signal?: AbortSignal): BootstrapDeps {
   return {
-    exec: execCapture,
+    exec: (cmd, args, opts) => { signal?.throwIfAborted(); return execCapture(cmd, args, { ...opts, signal }); },
     exists: (p) => fs.existsSync(p),
     listWheels: (dir) => {
       try {
@@ -1490,6 +1576,7 @@ function augmentFreePool429(message: string, err: unknown): string {
 }
 
 function handleScanError(err: unknown): void {
+  if (showLocalError(err)) return;
   statusBar.set('error');
   if (err instanceof BridgeError) {
     logError(`Bridge error (${err.kind}): ${err.message}`);
@@ -2125,6 +2212,7 @@ async function maybePromptModelMode(context: vscode.ExtensionContext): Promise<b
   // chosen, so we respect it and skip the picker.
   if (shouldRecordWithoutPrompt(chosen, mode, model)) {
     await context.globalState.update(MODEL_MODE_CHOSEN_KEY, true);
+    await refreshOnboardingState();
     logInfo('Model-mode selection skipped: an explicit model mode / crepair.model is already set.');
     return true;
   }
@@ -2176,10 +2264,14 @@ async function chooseModelMode(
   }
 
   await context.globalState.update(MODEL_MODE_CHOSEN_KEY, true);
+  await refreshOnboardingState();
   // The mode line reflects the new mode immediately (health caps are now stale).
   applyCapabilities(undefined);
 
-  if (mode === 'free') {
+  if (mode === 'local') {
+    bridge.setFreeModel(undefined);
+    return setUpLocal();
+  } else if (mode === 'free') {
     void vscode.window.showInformationMessage(
       'C Repair: running with the free model. Switch anytime via ' +
         '"C Repair: Choose Model Mode".',
@@ -2204,13 +2296,14 @@ async function chooseModelMode(
 async function pickModelMode(): Promise<ModelMode | undefined> {
   const hook = process.env[MODEL_MODE_HOOK_ENV];
   if (hook !== undefined) {
-    if (hook === 'free' || hook === 'default') return hook;
+    if (hook === 'local' || hook === 'free' || hook === 'default') return hook;
     return undefined; // 'esc' / 'cancel' / anything else = dismissed
   }
 
   const freeModel = readFreeModel();
   const choice = await vscode.window.showQuickPick(
     [
+      { id: 'local', label: '$(device-desktop) Use a local model', detail: 'Run a downloaded model on this computer. No API key; automatic setup and custom settings available.' },
       {
         id: 'free',
         label: '$(rocket) Try the free model first',
@@ -2220,7 +2313,7 @@ async function pickModelMode(): Promise<ModelMode | undefined> {
         id: 'default',
         label: `$(star) Use the ${DEFAULT_MODE_LABEL_LOWER} model`,
         detail:
-          `The tested model of this release (currently ${DEFAULT_OVERRIDES.model}; ` +
+          `The preset model of this release (currently ${DEFAULT_OVERRIDES.model}; ` +
           `may change in future releases). Usage-based cost — typically a few cents per file.`,
       },
     ] as (vscode.QuickPickItem & { id: ModelMode })[],
@@ -2228,7 +2321,7 @@ async function pickModelMode(): Promise<ModelMode | undefined> {
       title: 'C Repair: choose a model mode',
       placeHolder:
         `Start with the free model (${freeModel}, $0) or the ` +
-        `${DEFAULT_MODE_LABEL_LOWER} usage-based model?`,
+        `${DEFAULT_MODE_LABEL_LOWER} usage-based model, or run a local model.`,
     },
   );
   return choice?.id;
@@ -2397,7 +2490,7 @@ async function generateRepair(node?: CRepairNode): Promise<void> {
         // Task B/A: a cancel aborts the fetch -> bridge disconnect -> LLM stop.
         const abort = abortControllerForToken(token);
         progress.report({ message: 'starting bridge…' });
-        const handle = await bridge.ensureStarted();
+        const handle = await bridge.ensureStarted(abort.signal);
         progress.report({ message: 'generating repair (LLM + validation gates)…' });
         // Re-derive the compile `-I` paths from the session's file dir + settings
         // (D-020) so the baseline pre-check + candidate compile gate see the same
@@ -2444,6 +2537,7 @@ function repairProgressTitle(base: string, session: ScanSession): string {
 }
 
 function handleRepairError(err: unknown): void {
+  if (showLocalError(err)) return;
   // A user cancel is not a failure: show a quiet "Cancelled." (task B) and stop.
   // The fetch abort already disconnected the bridge, halting the LLM call (task A).
   if (isCancellation(err)) {
@@ -2855,7 +2949,7 @@ async function acceptAllReviewed(): Promise<void> {
 /** The capitalized model-mode display label for the report (D-038: `default` -> "Preset"). */
 function modelModeReportLabel(mode: ModelMode): string {
   if (mode === 'default') return DEFAULT_MODE_LABEL; // "Preset"
-  return mode === 'free' ? 'Free' : 'Custom';
+  return mode === 'local' ? 'Local' : mode === 'free' ? 'Free' : 'Custom';
 }
 
 /**
@@ -3547,7 +3641,20 @@ function maybeShowStartupConfigNotice(): void {
     });
 }
 
+let savingLocalSettings = false;
 function onConfigChanged(e: vscode.ConfigurationChangeEvent): void {
+  if (e.affectsConfiguration('crepair.modelMode') || e.affectsConfiguration('crepair.model')) void refreshOnboardingState();
+  if (savingLocalSettings && (e.affectsConfiguration('crepair.local') || e.affectsConfiguration('crepair.modelMode'))) return;
+  if (e.affectsConfiguration('crepair.local')) {
+    restartBridgeForSettings('Local settings changed');
+    if (['configuration', 'preset', 'modelPath', 'modelName', 'templatePath'].some(k => e.affectsConfiguration(`crepair.local.${k}`))) clearLiveSessionState();
+    return;
+  }
+  if (e.affectsConfiguration('crepair.modelMode')) {
+    // Do not reuse a live bridge after switching between local and API.
+    restartBridgeForSettings('Execution mode changed');
+    clearLiveSessionState();
+  }
   if (!BRIDGE_RESTART_SETTINGS.some((s) => e.affectsConfiguration(s))) return;
 
   // The model / reasoning / mode line reflects the changed setting immediately. Until
@@ -3649,4 +3756,80 @@ function readIncludePathSettings(): {
       DEFAULT_INCLUDE_PATH_SETTINGS.autoIncludeFileDir,
     ),
   };
+}
+
+
+/** Guided local setup: model, acquisition, editable settings, preparation. */
+async function setUpLocal(): Promise<boolean> {
+  const ctx = extensionContext;
+  if (!ctx) return false;
+  try {
+    const settings = await localSetupWizard(ctx, async (progress, signal) => {
+      try { return bridge.pythonForSetup(); }
+      catch (err) {
+        if (!(err instanceof BridgeError) || err.kind !== 'not_configured') throw err;
+        // Starting local setup authorizes its required runtime preparation.
+        const result = await runBootstrap({ ...bootstrapDeps(progress, signal), confirmInstallUv: async () => true }, {
+          globalStorageDir: ctx.globalStorageUri.fsPath, extensionDir: ctx.extensionUri.fsPath,
+        });
+        return result.venvPython;
+      }
+    }, { current: readLocalSettings() });
+    if (!settings) return false;
+    await saveLocalModelSettings(settings, true);
+    bridge.setFreeModel(undefined);
+    await ensureBridgeForScan();
+    statusBar.set('ready');
+    void vscode.window.showInformationMessage(`C Repair: ${settings.modelName} is ready. ${bridge.localMemorySummary ?? 'GPU memory measurement unavailable.'} Scan a C file to begin.`, 'Local settings').then(choice => { if (choice) void vscode.commands.executeCommand('crepair.localSettings'); });
+    return true;
+  } catch (err) { if (!(err instanceof Error && err.name === 'AbortError')) handleScanError(err); return false; }
+}
+
+function showLocalError(err: unknown): boolean {
+  if (err instanceof BridgeHttpError && err.code?.startsWith('local_')) {
+    const setting = localErrorSetting(err.code);
+    const action = setting ? 'Change token / runtime setting' : 'Local settings';
+    void vscode.window.showErrorMessage(`C Repair: ${err.message}`, action).then(pick => {
+      if (pick === action) void vscode.commands.executeCommand('crepair.localSettings', setting);
+    });
+    return true;
+  }
+  if (readModelMode() === 'local' && err instanceof BridgeError && err.kind === 'spawn') {
+    void vscode.window.showErrorMessage(`C Repair: ${err.message}`, 'Local settings').then(choice => { if (choice) void vscode.commands.executeCommand('crepair.localSettings'); });
+    return true;
+  }
+  if (isCancellation(err) || (readModelMode() === 'local' && err instanceof Error && err.name === 'AbortError')) {
+    statusBar.set('ready');
+    return true;
+  }
+  return false;
+}
+
+/** Commit the model and its tuning atomically, with one runtime invalidation. */
+async function saveLocalModelSettings(settings: LocalSettings, activate = false): Promise<void> {
+  const before = readLocalSettings();
+  const changed = LOCAL_SETUP_KEYS.some(k => JSON.stringify(before[k]) !== JSON.stringify(settings[k]));
+  const modeChanged = activate && readModelMode() !== 'local';
+  if (!changed && !modeChanged) return;
+  if (usageInFlightOps > 0) throw new Error('Wait for the current scan or repair to finish before applying local settings.');
+  savingLocalSettings = true;
+  try {
+    const cfg = vscode.workspace.getConfiguration('crepair');
+    const existing = cfg.inspect('local.configuration');
+    const target = existing?.workspaceFolderValue !== undefined ? vscode.ConfigurationTarget.WorkspaceFolder : existing?.workspaceValue !== undefined ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Global;
+    if (changed) await cfg.update('local.configuration', Object.fromEntries(LOCAL_SETUP_KEYS.filter(k => settings[k] !== undefined).map(k => [k, settings[k]])), target);
+    if (modeChanged) await cfg.update('modelMode', 'local', vscode.ConfigurationTarget.Global);
+  } finally { savingLocalSettings = false; }
+  if (readModelMode() === 'local' || modeChanged) restartBridgeForSettings('Local model settings applied');
+  if (readModelMode() === 'local' && (modeChanged || (['preset', 'modelPath', 'modelName', 'templatePath'] as const).some(k => before[k] !== settings[k]))) clearLiveSessionState();
+}
+async function openLocalModelSettings(focus?: string): Promise<void> {
+  if (!extensionContext) return;
+  if (!readLocalSettings().modelPath) { await setUpLocal(); return; }
+  try {
+    const settings = await editLocalModelSettings(extensionContext, readLocalSettings(), { localReasoning: bridge?.localReasoning, applyBlocked: () => usageInFlightOps > 0 ? 'Wait for the current scan or repair to finish, then Apply. Your edits are retained here.' : undefined }, focus);
+    if (!settings) return;
+    await saveLocalModelSettings(settings);
+    void vscode.window.showInformationMessage('C Repair: local model settings saved. They will be used on the next local scan.');
+  } catch (err) { handleScanError(err); }
 }

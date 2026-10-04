@@ -88,11 +88,11 @@ test('the default mode displays as its label, never as "default" (D-038)', () =>
   const modeSetting = flatProperties()['crepair.modelMode'];
 
   // The STORED enum values are unchanged (compat: settings, tests, env mapping)…
-  assert.deepEqual(modeSetting.enum, ['default', 'free', 'custom']);
+  assert.deepEqual(modeSetting.enum, ['default', 'free', 'custom', 'local']);
   // …but the DISPLAY labels come from the single source-of-truth constant. This
   // pins package.json's static string to the code constant so a rename cannot
   // drift between the settings UI and the header/notice wording.
-  assert.deepEqual(modeSetting.enumItemLabels, [DEFAULT_MODE_LABEL, 'Free', 'Custom']);
+  assert.deepEqual(modeSetting.enumItemLabels, [DEFAULT_MODE_LABEL, 'Free', 'Custom', 'Local — run a downloaded model on the extension host; no API key']);
   // The label description states the release-preset semantics (may change later).
   const enumDescs = modeSetting.markdownEnumDescriptions ?? [];
   assert.match(enumDescs[0] ?? '', /preset/i);
@@ -178,7 +178,7 @@ test('internal identifiers are unchanged — the rebrand is display-only (D-037/
   // The stored model-mode value stays "default" (only its display label changed).
   assert.deepEqual(
     flatProperties()['crepair.modelMode'].enum,
-    ['default', 'free', 'custom'],
+    ['default', 'free', 'custom', 'local'],
   );
   // The contract-pinned prelude marker keeps its exact wording (CONTRACT.md /
   // fixtures depend on it; it is unaffected by the product rename).

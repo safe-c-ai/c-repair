@@ -780,12 +780,14 @@ def _merge_compile_config(compile_config: object, extra_include_paths: Sequence[
     return merged_config
 
 
-# Patterns that name a symbol missing because of absent external context, in
-# order of specificity. Each capturing group is the symbol name.
+# GCC and Clang diagnostics for absent external context. Each capturing group
+# is the symbol name; matches are merged in diagnostic order below.
 _MISSING_SYMBOL_PATTERNS = (
     re.compile(r"unknown type name ['‘]([A-Za-z_]\w*)['’]"),
     re.compile(r"implicit declaration of function ['‘]([A-Za-z_]\w*)['’]"),
     re.compile(r"['‘]([A-Za-z_]\w*)['’] undeclared"),
+    re.compile(r"use of undeclared identifier ['‘]([A-Za-z_]\w*)['’]"),
+    re.compile(r"call to undeclared function ['‘]([A-Za-z_]\w*)['’]"),
 )
 
 
@@ -794,15 +796,19 @@ def _extract_missing_symbols(stderr: str) -> List[str]:
 
     Recognizes the common "external context absent" signatures gcc/clang emit:
     ``unknown type name 'X'``, ``implicit declaration of function 'Y'`` and
-    ``'Z' undeclared``. Preserves first-seen order and drops duplicates. Returns
+    ``'Z' undeclared``, plus Clang's ``use of undeclared identifier`` and
+    ``call to undeclared function``. Preserves first-seen order and drops duplicates. Returns
     an empty list when nothing matches (caller then uses a generic message).
     """
     seen: List[str] = []
-    for pattern in _MISSING_SYMBOL_PATTERNS:
-        for match in pattern.finditer(stderr or ""):
-            name = match.group(1)
-            if name and name not in seen:
-                seen.append(name)
+    matches = sorted(
+        (match for pattern in _MISSING_SYMBOL_PATTERNS for match in pattern.finditer(stderr or "")),
+        key=lambda match: match.start(),
+    )
+    for match in matches:
+        name = match.group(1)
+        if name and name not in seen:
+            seen.append(name)
     return seen
 
 
@@ -945,6 +951,7 @@ def _include_hunk_overlaps(hunk: _Hunk, existing: Sequence[_Hunk]) -> bool:
 # (``core/validation.py._MISSING_HEADER_RE``); reused so the bridge recognizes
 # exactly the header names certfix's ``CompileCheckResult.missing_headers`` does.
 _MISSING_HEADER_RE = re.compile(r"fatal error:\s+([^:\n]+):\s+No such file or directory")
+_CLANG_MISSING_HEADER_RE = re.compile(r"(?:fatal )?error:\s+['‘]([^'’\n]+)['’]\s+file not found")
 
 # A quoted local include: ``#include "name"`` (double or, non-standardly, single
 # quotes). System ``<...>`` includes are deliberately NOT matched — an absent
@@ -970,17 +977,18 @@ def _quoted_include_names(source: str) -> List[str]:
 
 
 def _extract_missing_local_headers(stderr: str, source: str) -> List[str]:
-    """Missing LOCAL headers = gcc-reported missing headers ∩ quoted includes.
+    """Missing LOCAL headers = compiler-reported missing headers ∩ quoted includes.
 
     ``stderr`` is scanned with the same ``fatal error: <name>: No such file or
-    directory`` signature certfix uses, giving the header names gcc could not
-    find. That message does not reveal the include *style* (the name is bare for
+    directory`` signature certfix uses and Clang's ``'name' file not found``.
+    Those messages do not reveal the include *style* (the name is bare for
     both ``"x.h"`` and ``<x.h>``), so the result is intersected with the source's
     QUOTED includes: only headers that were included with quotes are returned, so
     a genuinely missing *system* header (``<x.h>``) is never stubbed. First-seen
     order (by the source's include order), de-duplicated.
     """
     reported = set(_MISSING_HEADER_RE.findall(stderr or ""))
+    reported.update(_CLANG_MISSING_HEADER_RE.findall(stderr or ""))
     if not reported:
         return []
     # Order by the source's quoted-include order for determinism.
@@ -1223,6 +1231,7 @@ class RepairConfig:
     violation_removal_max_tokens: int
     violation_removal_override_denylist: List[str]
     semantic_enabled: bool
+    local_completion_limit: Optional[int] = None
     semantic_max_tokens: int = 1024
     # Fix-role routing info used to resolve the model's output ceiling from
     # OpenRouter (see ModelCeilingResolver). ``fix_extra_body`` carries the
@@ -2320,7 +2329,7 @@ def run_repair(
     #     (static fallback on any failure). The OpenRouter key comes from the fix
     #     role's api_key_env.
     resolver = ceiling_resolver or model_ceiling
-    ceiling = resolver.resolve(
+    ceiling = config.local_completion_limit or resolver.resolve(
         config.model_name,
         extra_body=config.fix_extra_body,
         api_key=os.environ.get(config.fix_api_key_env or "OPENROUTER_API_KEY"),
@@ -2332,7 +2341,7 @@ def run_repair(
     #     Repairing it would truncate (finish=length) and bill for a useless output,
     #     so we return repair_failed with model-dependent guidance instead of
     #     spending. The wording avoids concrete numbers (the limit is model-specific).
-    if repair_budget_exceeds_ceiling(repair_code, ceiling=ceiling):
+    if config.local_completion_limit is None and repair_budget_exceeds_ceiling(repair_code, ceiling=ceiling):
         logger.info(
             "repair diagnostic: file too large for whole-file repair "
             "src=%s function=%s ceiling=%d",

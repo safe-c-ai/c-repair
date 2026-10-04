@@ -10,6 +10,9 @@ import { autoRepairQueue } from './autoRepairQueue.test';
 import { dedupeInclude } from './dedupeInclude.test';
 import { judgmentGate } from './judgmentGate.test';
 import { validationLens } from './validationLens.test';
+import { localSetup } from './localSetup.test';
+import { guides } from './guides.test';
+import { practiceSample } from './practiceSample.test';
 import { modelMode } from './modelMode.test';
 
 export function run(): Promise<void> {
@@ -40,6 +43,9 @@ export function run(): Promise<void> {
   // model/provider config, restoring the defaults in afterAll. Runs last so its
   // per-test Reset Extension State + config writes disturb no other suite.
   modelMode(mocha.suite);
+  localSetup(mocha.suite);
+  guides(mocha.suite);
+  practiceSample(mocha.suite);
   return new Promise((resolve, reject) => {
     mocha.run((failures) => {
       if (failures > 0) reject(new Error(`${failures} test(s) failed.`));

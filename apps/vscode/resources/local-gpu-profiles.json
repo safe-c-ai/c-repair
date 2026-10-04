@@ -1,0 +1,135 @@
+{
+  "32plus": {
+    "artifactId": "qwen38:UD-Q4_K_M",
+    "minimumRamGiB": 16,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 99,
+      "cpuExperts": false,
+      "cacheTypeK": "f16",
+      "cacheTypeV": "f16",
+      "batchSize": 2048,
+      "ubatchSize": 512,
+      "threads": 12,
+      "mtpDraftTokens": 2,
+      "timeoutSeconds": 2400,
+      "effort": "medium"
+    }
+  },
+  "24": {
+    "artifactId": "qwen38:UD-Q4_K_M",
+    "minimumRamGiB": 16,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 99,
+      "cpuExperts": false,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "medium"
+    }
+  },
+  "16": {
+    "artifactId": "qwen38:UD-Q3_K_XL",
+    "minimumRamGiB": 16,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 56,
+      "cpuExperts": false,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "medium"
+    }
+  },
+  "12": {
+    "artifactId": "qwen38:UD-Q2_K_XL",
+    "minimumRamGiB": 16,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 48,
+      "cpuExperts": false,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "medium"
+    }
+  },
+  "10": {
+    "artifactId": "qwen38:UD-Q2_K_XL",
+    "minimumRamGiB": 16,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 40,
+      "cpuExperts": false,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "medium"
+    }
+  },
+  "8": {
+    "artifactId": "ornith15:Q4_K_M",
+    "minimumRamGiB": 32,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 24,
+      "cpuExperts": true,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "off"
+    }
+  },
+  "under8": {
+    "artifactId": "ornith15:Q4_K_M",
+    "minimumRamGiB": 32,
+    "settings": {
+      "contextTokens": 65536,
+      "maxCompletionTokens": 32768,
+      "structuredTokens": 4096,
+      "gpuLayers": 0,
+      "cpuExperts": true,
+      "cacheTypeK": "q8_0",
+      "cacheTypeV": "q8_0",
+      "batchSize": 512,
+      "ubatchSize": 128,
+      "threads": 0,
+      "mtpDraftTokens": 0,
+      "timeoutSeconds": 14400,
+      "effort": "off"
+    }
+  }
+}

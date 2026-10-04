@@ -1,3 +1,10 @@
+import * as path from 'node:path';
+import { prepareMlxEngine } from './localMlx';
+import { prepareLocalEngine } from './localEngine';
+import { gpuMemorySummary } from './localMemory';
+import { LocalRuntime } from './LocalRuntime';
+import { inspectLocalReasoning, type LocalReasoningInfo } from './localReasoning';
+import { resolveLocalSettings, localBridgeEnv, validateLocalSettings, type LocalSettings } from './localSettings';
 // Bridge lifecycle manager (VSCODE_V1B_DESIGN.md §2):
 //   1. resolve the Python interpreter
 //   2. reserve a free ephemeral port
@@ -55,6 +62,11 @@ export class BridgeError extends Error {
 }
 
 export class BridgeManager {
+  localMemorySummary?: string;
+  localReasoning?: LocalReasoningInfo;
+  private readonly localRuntime = new LocalRuntime();
+  private localFingerprint?: string;
+  private startEpoch = 0;
   private child: ChildProcess | undefined;
   private handle: BridgeHandle | undefined;
   private starting: Promise<BridgeHandle> | undefined;
@@ -78,7 +90,12 @@ export class BridgeManager {
      * skips step ③).
      */
     private readonly globalStorageDir?: string,
+    private readonly extensionDir?: string,
   ) {}
+
+  pythonForSetup(): string { return this.resolvePython(); }
+
+  get currentHandle(): BridgeHandle | undefined { return this._state === 'ready' ? this.handle : undefined; }
 
   get state(): BridgeState {
     return this._state;
@@ -122,18 +139,22 @@ export class BridgeManager {
    * live handle if the child is still alive, otherwise (re)spawns. Concurrent
    * callers share one start.
    */
-  async ensureStarted(): Promise<BridgeHandle> {
+  async ensureStarted(signal?: AbortSignal): Promise<BridgeHandle> {
+    const fingerprint = this.modelMode() === 'local' ? JSON.stringify(this.localSettings()) : undefined;
+    if (this.localFingerprint !== fingerprint || (fingerprint && this.handle && !this.localRuntime.running)) this.kill();
+    this.localFingerprint = fingerprint;
     if (this.handle && this.child && this.child.exitCode === null) {
       return this.handle;
     }
     if (this.starting) return this.starting;
-    this.starting = this.start().finally(() => {
+    this.starting = this.start(signal).finally(() => {
       this.starting = undefined;
     });
     return this.starting;
   }
 
-  private async start(): Promise<BridgeHandle> {
+  private async start(signal?: AbortSignal): Promise<BridgeHandle> {
+    const epoch = this.startEpoch;
     this.setState('starting');
     try {
       // TEST-ONLY hook (VSCODE_V1B_DESIGN §7): when CREPAIR_TEST_BRIDGE_URL is
@@ -152,15 +173,38 @@ export class BridgeManager {
 
       const python = this.resolvePython();
       const port = this.configuredPort() || (await reserveFreePort());
-      const apiKey = await this.secrets.get(API_KEY_SECRET);
+      let localEnv: Record<string, string> | undefined;
+      if (this.modelMode() === 'local') {
+        const settings = this.localSettings();
+        if (!settings.serverPath && this.extensionDir && this.globalStorageDir) settings.serverPath = settings.runtime === 'mlx' ? await prepareMlxEngine(this.globalStorageDir, this.extensionDir, message => logInfo(message), signal, python) : await prepareLocalEngine(this.globalStorageDir, this.extensionDir, python, message => logInfo(message), signal, settings.gpuLayers);
+        signal?.throwIfAborted();
+        if (epoch !== this.startEpoch) throw new Error('Bridge startup was cancelled.');
+        validateLocalSettings(settings);
+        const runtimePort = await this.localRuntime.start(settings, signal, this.extensionDir ? path.join(this.extensionDir, 'resources', 'mlx-server.py') : undefined);
+        this.localReasoning = await inspectLocalReasoning(runtimePort, settings);
+        localEnv = localBridgeEnv(settings, runtimePort);
+        this.localMemorySummary = await gpuMemorySummary();
+        if (this.localMemorySummary) logInfo(`Local model loaded. ${this.localMemorySummary}`);
+      }
+      signal?.throwIfAborted();
+      if (epoch !== this.startEpoch) throw new Error('Bridge startup was cancelled.');
+      const apiKey = localEnv ? undefined : await this.secrets.get(API_KEY_SECRET);
       const token = randomUUID();
 
-      const handle = await this.spawnAndHandshake(python, port, token, apiKey);
+      const handle = await this.spawnAndHandshake(python, port, token, apiKey, localEnv);
+      if (epoch !== this.startEpoch || signal?.aborted) { this.kill(); throw new Error('Bridge startup was cancelled.'); }
       this.handle = handle;
       this.setState('ready');
       return handle;
     } catch (err) {
+      if (epoch !== this.startEpoch) {
+        throw new DOMException('Bridge startup was cancelled.', 'AbortError');
+      }
+      this.kill();
       this.setState('error');
+      if (this.modelMode() === 'local' && !(err instanceof BridgeError) && (err as Error).name !== 'AbortError') {
+        throw new BridgeError(`Local startup failed: ${(err as Error).message}. Open C Repair local settings to adjust the runtime, model or memory configuration.`, 'spawn');
+      }
       throw err;
     }
   }
@@ -213,6 +257,10 @@ export class BridgeManager {
     }
   }
 
+  private localSettings(): LocalSettings {
+    return readLocalSettings();
+  }
+
   private configuredPort(): number {
     const p = vscode.workspace.getConfiguration('crepair').get<number>('bridge.port', 0);
     return typeof p === 'number' && p > 0 ? p : 0;
@@ -248,6 +296,7 @@ export class BridgeManager {
     port: number,
     token: string,
     apiKey: string | undefined,
+    localEnv?: Record<string, string>,
   ): Promise<BridgeHandle> {
     const baseUrl = `http://127.0.0.1:${port}`;
     // Token + API key are passed via env ONLY. argv carries no secret.
@@ -261,7 +310,11 @@ export class BridgeManager {
       // everywhere regardless of locale; harmless on Linux/macOS.
       PYTHONUTF8: '1',
     };
-    if (apiKey) env.OPENROUTER_API_KEY = apiKey;
+    // The execution route is selected by the mode, not inherited from a shell.
+    // Preserve unrelated controls (e.g. CREPAIR_RULE_TITLES) and legacy API overrides.
+    for (const key of Object.keys(env)) if (key === 'CREPAIR_ROUTE' || key.startsWith('CREPAIR_LOCAL_')) delete env[key];
+    if (localEnv) { delete env.OPENROUTER_API_KEY; Object.assign(env, localEnv); }
+    else if (apiKey) env.OPENROUTER_API_KEY = apiKey;
 
     // D-031 model-mode overrides. `crepair.modelMode` is the source of truth: in
     // `default` mode NO model/provider var is emitted (bundled config verbatim); in
@@ -279,7 +332,7 @@ export class BridgeManager {
     // applied ON TOP of the mode env, pinning the free model + automatic routing (the
     // DeepInfra pin cannot serve :free models). Only armed while modelMode=default and
     // the key has no credits AND the user did not set an explicit model.
-    if (this.freeModel) {
+    if (this.freeModel && !localEnv) {
       Object.assign(env, buildFreeModelEnv(this.freeModel));
     }
     const overrideKeys = Object.keys({ ...overrideEnv, ...(this.freeModel ? buildFreeModelEnv(this.freeModel) : {}) });
@@ -305,6 +358,9 @@ export class BridgeManager {
       if (line) logInfo(`[uvicorn] ${line}`);
     });
     child.on('exit', (code, signal) => {
+      if (this.child !== child) return;
+      this.localReasoning = undefined;
+      void this.localRuntime.stop();
       const wasReady = this.handle !== undefined;
       this.handle = undefined;
       this.setState(wasReady ? 'error' : 'error');
@@ -314,10 +370,10 @@ export class BridgeManager {
       logError(`Failed to spawn bridge process: ${err.message}`);
     });
 
-    const client = new BridgeClient(baseUrl, token);
+    const client = new BridgeClient(baseUrl, token, localEnv ? Number(localEnv.CREPAIR_LOCAL_TIMEOUT) * 1000 : undefined);
     const health = await this.pollHealth(client, child);
 
-    const compat = checkHealthCompat(health);
+    const compat = checkHealthCompat(health, !!localEnv);
     if (!compat.ok) {
       this.kill();
       throw new BridgeError(compat.reason, 'incompatible');
@@ -367,6 +423,9 @@ export class BridgeManager {
 
   /** Terminate the child process (idempotent). Called on deactivate. */
   kill(): void {
+    this.localReasoning = undefined;
+    this.startEpoch += 1;
+    void this.localRuntime.stop();
     if (this.child && this.child.exitCode === null) {
       try {
         this.child.kill();
@@ -377,6 +436,11 @@ export class BridgeManager {
     this.child = undefined;
     this.handle = undefined;
     if (this._state !== 'error') this.setState('stopped');
+  }
+
+  async stop(): Promise<void> {
+    this.kill();
+    await this.localRuntime.stop();
   }
 
   dispose(): void {
@@ -411,4 +475,13 @@ function reserveFreePort(): Promise<number> {
 
 function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+
+export function readLocalSettings(): LocalSettings {
+  const cfg = vscode.workspace.getConfiguration('crepair');
+  return resolveLocalSettings(key => {
+    const setting = cfg.inspect(`local.${key}`);
+    return setting?.workspaceFolderValue ?? setting?.workspaceValue ?? setting?.globalValue;
+  });
 }

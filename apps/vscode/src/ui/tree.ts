@@ -64,14 +64,14 @@ export class CRepairTreeProvider implements vscode.TreeDataProvider<Node> {
    * The last session-usage line (D-030), mirrored here so it survives a tree
    * refresh and so the integration suite can assert it via `(tree as any).message`.
    * `undefined` clears the session line (no metering reading / tracker disabled) —
-   * the always-on model line still shows.
+   * the model line is retained for the next results header.
    */
   message: string | undefined;
 
   /**
-   * The always-on model / tier / reasoning line shown as the header's first row
+   * The model / tier / reasoning line shown as the results header's first row
    * (e.g. "Model: … (PAID) · reasoning: xhigh"). Kept separate from `message` so a
-   * scan reset that clears the session line never hides the model line, and so the
+   * scan reset retains the model information for the next session, and so the
    * integration suite can assert it via `(tree as any).modelLine`. `undefined`
    * before the first model line is computed.
    */
@@ -87,7 +87,7 @@ export class CRepairTreeProvider implements vscode.TreeDataProvider<Node> {
    * Set the session token/cost line shown above the tree (D-030). Mirrors to the
    * public `message` field (test-observable, survives refresh) and re-renders the
    * combined header (model line + session line). Pass undefined to clear the
-   * session line; the model line stays.
+   * session line; the model information is retained.
    */
   setMessage(message: string | undefined): void {
     this.message = message;
@@ -95,7 +95,7 @@ export class CRepairTreeProvider implements vscode.TreeDataProvider<Node> {
   }
 
   /**
-   * Set the always-on model / tier / reasoning line and re-render the header. Driven
+   * Set the model / tier / reasoning line and re-render the results header. Driven
    * by the extension whenever the effective model/reasoning could change (bridge
    * ready, settings change, mode switch, bridge restart). Pass undefined to clear it.
    */
@@ -107,11 +107,14 @@ export class CRepairTreeProvider implements vscode.TreeDataProvider<Node> {
   /**
    * Push the combined header (model line, then session line) to the live TreeView.
    * The model line is always first; the session line follows on its own row when a
-   * scan is active. With neither, the header is cleared.
+   * scan is active. Before a scan or after Reset, leave the header empty so VS Code
+   * displays the welcome actions; retain the stored model information.
    */
   private renderHeader(): void {
     if (!this.view) return;
-    this.view.message = this.modelLine
+    // VS Code suppresses viewsWelcome whenever a TreeView message is present.
+    // Keep the setup/help actions visible until a scan installs results.
+    this.view.message = !this.session ? undefined : this.modelLine
       ? combineHeaderMessage(this.modelLine, this.message)
       : this.message;
   }
@@ -119,6 +122,7 @@ export class CRepairTreeProvider implements vscode.TreeDataProvider<Node> {
   /** Replace the displayed session (or clear it). Fires a full refresh. */
   setSession(session: ScanSession | undefined): void {
     this.session = session;
+    this.renderHeader();
     this._onDidChange.fire(undefined);
   }
 

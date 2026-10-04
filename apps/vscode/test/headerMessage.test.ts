@@ -23,7 +23,7 @@ function caps(overrides: Partial<HealthCapabilities> = {}): HealthCapabilities {
     rules_count: 115,
     gates: ['format', 'compile'],
     routes: ['api'],
-    model: 'deepseek/deepseek-v4-flash-0731',
+    model: 'deepseek/deepseek-v4.1-flash',
     provider_order: ['DeepInfra'],
     reasoning_effort: 'xhigh',
     ...overrides,
@@ -50,8 +50,8 @@ test('isFreeModel: a `:free` model id is FREE', () => {
 });
 
 test('isFreeModel: a plain model id is PAID unless the free construction is active', () => {
-  assert.equal(isFreeModel('deepseek/deepseek-v4-flash-0731', false), false);
-  assert.equal(isFreeModel('deepseek/deepseek-v4-flash-0731', true), true);
+  assert.equal(isFreeModel('deepseek/deepseek-v4.1-flash', false), false);
+  assert.equal(isFreeModel('deepseek/deepseek-v4.1-flash', true), true);
 });
 
 // --- reasoningText ----------------------------------------------------------
@@ -76,7 +76,7 @@ test('reasoningText: falls back to the configured setting when health is absent'
 test('modelLineText: from /health, PAID default model', () => {
   assert.equal(
     modelLineText(inputs({ caps: caps() })),
-    'Model: deepseek/deepseek-v4-flash-0731 (PAID) · reasoning: xhigh · mode: custom',
+    'Model: deepseek/deepseek-v4.1-flash (PAID) · reasoning: xhigh · mode: custom',
   );
 });
 
@@ -94,7 +94,7 @@ test('modelLineText: from /health, FREE model id', () => {
 test('modelLineText: onFreeModel construction forces FREE even for a plain id', () => {
   assert.equal(
     modelLineText(inputs({ caps: caps(), onFreeModel: true })),
-    'Model: deepseek/deepseek-v4-flash-0731 (FREE) · reasoning: xhigh · mode: custom',
+    'Model: deepseek/deepseek-v4.1-flash (FREE) · reasoning: xhigh · mode: custom',
   );
 });
 
@@ -141,7 +141,7 @@ test('modelLineText: /health value supersedes the mode-derived model but the mod
   // `· mode:` tag still reflects the current crepair.modelMode setting (D-031).
   assert.equal(
     modelLineText(inputs({ mode: 'free', caps: caps() })),
-    'Model: deepseek/deepseek-v4-flash-0731 (PAID) · reasoning: xhigh · mode: free',
+    'Model: deepseek/deepseek-v4.1-flash (PAID) · reasoning: xhigh · mode: free',
   );
 });
 

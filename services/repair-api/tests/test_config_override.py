@@ -65,35 +65,32 @@ def test_no_env_yields_bit_identical_config() -> None:
 
 def test_no_env_reports_bundled_effective_values() -> None:
     eff = load_effective_config(CONFIG_PATH, env={})
-    assert eff.model == "deepseek/deepseek-v4-flash-0731"
+    assert eff.model == "deepseek/deepseek-v4.1-flash"
     assert eff.provider_order == ["DeepInfra"]
     # Bundled config pins the fix role's reasoning effort at xhigh (D-028), while
-    # detection reasoning is fixed off (D-029).
     assert eff.reasoning_effort == "xhigh"
-    assert eff.detection_reasoning == "off"
+    assert eff.detection_reasoning == eff.reasoning_effort
 
 
-def test_bundled_detection_reasoning_is_off() -> None:
-    # D-029: detection reasoning is disabled in the bundled config.
+def test_bundled_detection_reasoning_matches_repair() -> None:
     eff = load_effective_config(CONFIG_PATH, env={})
-    assert eff.config.detection.api.extra_body["reasoning"] == {"enabled": False}
+    assert eff.config.detection.api.extra_body["reasoning"] == next(iter(eff.config.models.values())).api.extra_body["reasoning"]
 
 
 # --- CREPAIR_REASONING_EFFORT (D-029: fix role only) ------------------------
 
 
 @pytest.mark.parametrize("level", ["max", "xhigh", "high", "medium", "low", "minimal"])
-def test_reasoning_effort_override_applies_to_fix_role_only(level: str) -> None:
+def test_reasoning_effort_override_applies_to_repair_and_detection(level: str) -> None:
     eff = load_effective_config(CONFIG_PATH, env={"CREPAIR_REASONING_EFFORT": level})
     # reasoning_effort reports the fix role's effective value (D-029).
     assert eff.reasoning_effort == level
     for role in eff.config.models.values():
         assert role.api.extra_body["reasoning"] == {"effort": level}
-    # D-029: detection is NEVER touched by the override — it stays off.
-    assert eff.config.detection.api.extra_body["reasoning"] == {"enabled": False}
-    assert eff.detection_reasoning == "off"
+    assert eff.config.detection.api.extra_body["reasoning"] == next(iter(eff.config.models.values())).api.extra_body["reasoning"]
+    assert eff.detection_reasoning == eff.reasoning_effort
     # Model / provider are untouched when only reasoning changes.
-    assert eff.model == "deepseek/deepseek-v4-flash-0731"
+    assert eff.model == "deepseek/deepseek-v4.1-flash"
     assert eff.provider_order == ["DeepInfra"]
 
 
@@ -102,9 +99,8 @@ def test_reasoning_effort_off_disables_fix_role_reasoning() -> None:
     assert eff.reasoning_effort == "off"
     for role in eff.config.models.values():
         assert role.api.extra_body["reasoning"] == {"enabled": False}
-    # Detection was already off and stays off.
-    assert eff.config.detection.api.extra_body["reasoning"] == {"enabled": False}
-    assert eff.detection_reasoning == "off"
+    assert eff.config.detection.api.extra_body["reasoning"] == next(iter(eff.config.models.values())).api.extra_body["reasoning"]
+    assert eff.detection_reasoning == eff.reasoning_effort
 
 
 def test_reasoning_effort_is_case_insensitive() -> None:
@@ -113,7 +109,7 @@ def test_reasoning_effort_is_case_insensitive() -> None:
     for role in eff.config.models.values():
         assert role.api.extra_body["reasoning"] == {"effort": "high"}
     # Detection unaffected (D-029).
-    assert eff.config.detection.api.extra_body["reasoning"] == {"enabled": False}
+    assert eff.config.detection.api.extra_body["reasoning"] == next(iter(eff.config.models.values())).api.extra_body["reasoning"]
 
 
 def test_invalid_reasoning_effort_is_ignored(caplog) -> None:
@@ -153,7 +149,7 @@ def test_model_id_override_does_not_mutate_the_cached_config() -> None:
     # Overriding must deep-copy; a fresh baseline load stays pristine.
     load_effective_config(CONFIG_PATH, env={"CREPAIR_MODEL_ID": "vendor/new-model"})
     baseline = Config.load(CONFIG_PATH)
-    assert baseline.detection.api.model == "deepseek/deepseek-v4-flash-0731"
+    assert baseline.detection.api.model == "deepseek/deepseek-v4.1-flash"
 
 
 # --- CREPAIR_PROVIDER_ORDER -------------------------------------------------
@@ -354,8 +350,7 @@ def test_private_cheap_reasoning_is_preserved_on_the_fix_role() -> None:
     for role in eff.config.models.values():
         assert role.api.extra_body["reasoning"] == {"effort": "xhigh"}
     assert eff.reasoning_effort == "xhigh"
-    # Detection reasoning stays off (D-029), untouched by the policy.
-    assert eff.config.detection.api.extra_body["reasoning"] == {"enabled": False}
+    assert eff.config.detection.api.extra_body["reasoning"] == next(iter(eff.config.models.values())).api.extra_body["reasoning"]
 
 
 # --- CREPAIR_CONFIG_PATH (full escape hatch) --------------------------------

@@ -43,7 +43,7 @@ logger = logging.getLogger("repair_api.adapter")
 
 # Identity constants (PHASE3A_DESIGN.md §3-5).
 ADAPTER_ID = "certfix-inprocess"
-ADAPTER_VERSION = "0.1.0"
+ADAPTER_VERSION = "0.2.0"
 RULE_PROFILE_ID = "cert-c"
 RULE_PROFILE_VERSION = "certfix-0.4.1-bundled"
 

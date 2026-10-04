@@ -85,7 +85,7 @@ function candidate(overrides: Partial<RepairCandidate> = {}): RepairCandidate {
       { hunk_id: 'h1', start_line: 4, line_count: 1, replacement_text: '  int c;\n  if (__builtin_add_overflow(a, b, &c)) return -1;' },
     ],
     validations: [val('format', 'pass'), val('compile', 'pass'), val('semantic', 'pass')],
-    model_identity: 'deepseek/deepseek-v4-flash-0731',
+    model_identity: 'deepseek/deepseek-v4.1-flash',
     ...overrides,
   };
 }
@@ -116,7 +116,7 @@ function makeInput(
     expectedHash: sha(ORIGINAL),
     extensionVersion: '0.1.0',
     ruleProfile: scan.rule_profile,
-    model: { model: 'deepseek/deepseek-v4-flash-0731', mode: 'Preset' },
+    model: { model: 'deepseek/deepseek-v4.1-flash', mode: 'Preset' },
     scan,
     contextStillMissing: undefined,
     contextProvenance: [],
@@ -142,7 +142,7 @@ test('§1 identity is the six-line trim: file/generated/tool/rule set/model/inte
   // cert-c is spelled out as "CERT C" with the catalog version, so a reviewer
   // can tell which rule-set edition judged the file without decoding raw ids.
   assert.match(md, /\*\*Rule set:\*\* CERT C — catalog `1` \(the rule set bundled with this harness release\)/);
-  assert.match(md, /\*\*Model:\*\* deepseek\/deepseek-v4-flash-0731 \(mode: Preset\)/);
+  assert.match(md, /\*\*Model:\*\* deepseek\/deepseek-v4\.1-flash \(mode: Preset\)/);
   assert.match(md, new RegExp('Integrity:\\*\\* original SHA-256 `' + sha(ORIGINAL).replace(/[/]/g, '\\/') + '`'));
   // Cut as non-evidence (user + Codex trim): harness/adapter/extension-version
   // lines and the visible internal ids. The scan id survives only as an

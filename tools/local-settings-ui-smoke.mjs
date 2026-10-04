@@ -1,0 +1,42 @@
+// Run after build:vscode: xvfb-run -a node tools/local-settings-ui-smoke.mjs
+import { _electron as electron } from 'playwright';
+import { mkdtemp, rm, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+const dir = await mkdtemp(join(tmpdir(), 'crepair-settings-ui-'));
+let app, page;
+try {
+  await mkdir(join(dir, 'user', 'User'), { recursive: true });
+  await writeFile(join(dir, 'saved.gguf'), 'UI fixture only');
+  await writeFile(join(dir, 'user', 'User', 'settings.json'), JSON.stringify({ 'crepair.local.modelPath': join(dir, 'saved.gguf'), 'crepair.local.preset': 'qwen38-27b-q4km' }));
+  app = await electron.launch({ executablePath: resolve('apps/vscode/.vscode-test/vscode-linux-x64-1.137.0/code'), args: ['--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage', '--skip-welcome', '--skip-release-notes', '--disable-workspace-trust', '--user-data-dir', join(dir, 'user'), '--extensions-dir', join(dir, 'extensions'), '--extensionDevelopmentPath=' + resolve('apps/vscode')], env: { ...process.env, CREPAIR_TEST_BRIDGE_URL: 'http://127.0.0.1:1' } });
+  console.log('VS Code launched');
+  page = await app.firstWindow();
+  page.setDefaultTimeout(15000);
+  console.log('Window ready');
+  await page.waitForSelector('.monaco-workbench');
+  await page.waitForSelector('.monaco-workbench .part.statusbar');
+  console.log('Opening settings');
+  await page.keyboard.press('Control+,');
+  await page.locator('.monaco-editor[data-uri^="settingseditor:searchinput"]').click();
+  await page.keyboard.insertText('@id:crepair.localSetup');
+  console.log('Settings query entered');
+  const link = page.getByRole('link', { name: 'Local model settings', exact: true });
+  await link.waitFor({ timeout: 30000 });
+  await link.click();
+  await page.getByText('C Repair · Local model settings', { exact: true }).waitFor({ timeout: 30000 });
+  await page.getByText('Model and quantization', { exact: true }).waitFor();
+  await page.getByText('Restore recommended settings', { exact: true }).waitFor();
+  await page.screenshot({ path: '/tmp/c-repair-local-settings-fixed.png' });
+  await page.getByText('Settings guide', { exact: true }).click();
+  await page.getByRole('tab', { name: /local-models(?:\.ja)?\.md/ }).waitFor();
+  await page.keyboard.press('Escape');
+  console.log('Bundled settings guide opens from the editor.');
+  await page.keyboard.press('Control+,');
+  console.log('Settings link opens editor for saved model; effective model, reasoning and restore are visible.');
+  await page.locator('.monaco-editor[data-uri^="settingseditor:searchinput"]').click();
+  await page.keyboard.press('Control+A');
+  await page.keyboard.insertText('@id:crepair.local.batchSize');
+  await page.locator('.settings-count-widget').filter({ hasText: 'No Settings Found' }).waitFor();
+  console.log('Technical local keys are hidden from native Settings.');
+} catch (e) { console.error((await page?.locator('body').innerText())?.slice(-12000)); console.error(await page?.locator('input,textarea').evaluateAll(es => es.map(e => ({tag:e.tagName, role:e.getAttribute('role'), aria:e.getAttribute('aria-label'), placeholder:e.getAttribute('placeholder')})))); throw e; } finally { await app?.close(); await rm(dir, { recursive: true, force: true }); }

@@ -1,0 +1,38 @@
+{
+  "cudart-llama-bin-win-cuda-12.4-x64.zip": {
+    "filename": "cudart-llama-bin-win-cuda-12.4-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/cudart-llama-bin-win-cuda-12.4-x64.zip",
+    "bytes": 391443627,
+    "sha256": "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
+  },
+  "cudart-llama-bin-win-cuda-13.3-x64.zip": {
+    "filename": "cudart-llama-bin-win-cuda-13.3-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/cudart-llama-bin-win-cuda-13.3-x64.zip",
+    "bytes": 390970417,
+    "sha256": "1462a050eb4c684921ba51dcc4cc488a036674c3e73e9945ee705b854808d03e"
+  },
+  "llama-b10883-bin-ubuntu-x64.tar.gz": {
+    "filename": "llama-b10883-bin-ubuntu-x64.tar.gz",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/llama-b10883-bin-ubuntu-x64.tar.gz",
+    "bytes": 16813862,
+    "sha256": "bb7df4783b12f164a1e829d4e692c216324ad919883f9e1c8abc77262db29145"
+  },
+  "llama-b10883-bin-win-cpu-x64.zip": {
+    "filename": "llama-b10883-bin-win-cpu-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/llama-b10883-bin-win-cpu-x64.zip",
+    "bytes": 18425091,
+    "sha256": "05865586d8cc235e7ed1e975e0df4c6d02ba81cab637845aed888ad5fe4ba061"
+  },
+  "llama-b10883-bin-win-cuda-12.4-x64.zip": {
+    "filename": "llama-b10883-bin-win-cuda-12.4-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/llama-b10883-bin-win-cuda-12.4-x64.zip",
+    "bytes": 254080748,
+    "sha256": "ec27d173749dba3b03080b4580070d8b07c6108e4972e39861d9ea63638177e2"
+  },
+  "llama-b10883-bin-win-cuda-13.3-x64.zip": {
+    "filename": "llama-b10883-bin-win-cuda-13.3-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10883/llama-b10883-bin-win-cuda-13.3-x64.zip",
+    "bytes": 149707717,
+    "sha256": "76ea14ef448ff13fed437cc8039f4721046be733aa18a5731b69093f1d2bc799"
+  }
+}

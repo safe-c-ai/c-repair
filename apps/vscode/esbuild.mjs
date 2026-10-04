@@ -6,11 +6,12 @@
 // `vscode` module is external — it is provided by the host at runtime.
 
 import { build, context } from 'esbuild';
-
-const watch = process.argv.includes('--watch');
+import { resolve } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 /** @type {import('esbuild').BuildOptions} */
 const options = {
+  absWorkingDir: fileURLToPath(new URL('.', import.meta.url)),
   entryPoints: ['src/extension.ts'],
   bundle: true,
   outfile: 'dist/extension.js',
@@ -23,10 +24,17 @@ const options = {
   logLevel: 'info',
 };
 
-if (watch) {
-  const ctx = await context(options);
-  await ctx.watch();
-  console.log('[esbuild] watching…');
-} else {
-  await build(options);
+// Packaging builds into an isolated OS temporary directory, leaving F5/watch output alone.
+export async function buildExtension(overrides = {}) {
+  return build({ ...options, ...overrides });
+}
+
+if (process.argv[1] && pathToFileURL(resolve(process.argv[1])).href === import.meta.url) {
+  if (process.argv.includes('--watch')) {
+    const ctx = await context(options);
+    await ctx.watch();
+    console.log('[esbuild] watching…');
+  } else {
+    await buildExtension();
+  }
 }

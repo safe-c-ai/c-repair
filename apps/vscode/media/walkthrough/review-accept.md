@@ -43,3 +43,6 @@ The loop is **Accept → edit → re-scan**: apply a candidate, make the wider
 changes it implies, then scan again to verify. Editing the file marks the
 current results **stale** on purpose — they are a snapshot from scan time, so a
 fresh scan is how you confirm the file is now clean.
+
+For the full workflow, including validation details and reports, open the
+[Quick start & user guide](command:crepair.openUserGuide).

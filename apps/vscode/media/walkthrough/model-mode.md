@@ -1,13 +1,15 @@
-## Choose a model mode
+## Choose an API model mode
 
-**[Choose Model Mode](command:crepair.chooseModelMode)** picks how repairs are
-paid for:
+[Choose Model Mode](command:crepair.chooseModelMode) offers **Use the preset
+model**, **Try the free model first**, and **Use a local model**.
 
-- **Preset** — the model/provider preset of this C Repair release, tested on the
-  CERT C benchmark (the preset may change in future releases). A single-file
-  scan typically costs a few cents.
-- **Free** — a community free-pool model at **$0**. Quality is lower and the
-  shared pool rate-limits under load; good for trying the flow.
+- **Preset** uses this release's model/provider configuration. Paid usage
+  depends on model and token consumption.
+- **Free** uses a shared free pool, with variable quality and rate limits.
+- **Custom** is available through [Settings](command:crepair.openSettings) →
+  **Models & Routing → Model Mode**, with your own model/provider settings.
 
-You can re-run this choice at any time from the Command Palette. Custom
-model/provider overrides live under `crepair.*` settings for advanced use.
+All API modes require an OpenRouter key. Switching from Local to API also
+requires changing **Model Mode**; connecting a key alone does not switch modes.
+
+[Quick start & user guide](command:crepair.openUserGuide)

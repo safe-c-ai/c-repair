@@ -40,10 +40,6 @@ if not _pkg_logger.handlers:
     _pkg_logger.setLevel(logging.INFO)
     _pkg_logger.propagate = False
 
-# How often the disconnect monitor polls ``request.is_disconnected()`` while the
-# sync repair/scan work runs in the threadpool (task A: ~1s cadence).
-_DISCONNECT_POLL_S = 1.0
-
 # Non-standard "Client Closed Request" status returned when a handler aborts after
 # the client disconnected. The body is never delivered (the client is gone); we use
 # a bare Response so FastAPI skips response_model validation on the aborted path.
@@ -175,6 +171,26 @@ class RepairDeps:
 RepairFactory = Callable[[], "RepairDeps"]
 
 
+def _reasoning_detection_backend(cfg):
+    """Give every detection sub-call room for thinking plus its answer.
+
+    CertFix's detection profiles pass small per-call output limits. The API's
+    extra-body limit takes precedence over those content-only limits.
+    """
+    import copy
+    from certfix.inference.factory import create_detection_backend
+    cfg = copy.deepcopy(cfg)
+    api = cfg.detection.api
+    extra = repair_adapter.reasoning_effort_to_cap(api.extra_body)
+    allowance = repair_adapter._fix_reasoning_cap(extra)
+    if allowance:
+        extra = dict(extra)
+        extra["max_tokens"] = max(api.max_tokens, cfg.validation.violation_removal.max_tokens, extra.get("max_tokens", 0)) + allowance
+        api.timeout = max(api.timeout, 300)
+    api.extra_body = extra
+    return create_detection_backend(cfg)
+
+
 def _default_backend_factory() -> object:
     """Build the real CertFix detection backend from the effective config (D-019).
 
@@ -186,7 +202,8 @@ def _default_backend_factory() -> object:
     from certfix.inference.factory import create_detection_backend
 
     cfg = load_effective_config(CONFIG_PATH).config
-    return create_detection_backend(cfg)
+    from .local import local_enabled, LocalBackend
+    return LocalBackend(cfg, detection=True) if local_enabled() else _reasoning_detection_backend(cfg)
 
 
 def _default_repair_factory() -> "RepairDeps":
@@ -226,6 +243,19 @@ def _default_repair_factory() -> "RepairDeps":
 
     cfg = load_effective_config(CONFIG_PATH).config
 
+    from .local import local_enabled, LocalBackend, LocalSettings
+    if local_enabled():
+        from dataclasses import replace
+        settings = LocalSettings.read()
+        config = replace(repair_adapter.RepairConfig.from_certfix_config(cfg),
+                         local_completion_limit=settings.completion,
+                         semantic_max_tokens=settings.completion,
+                         violation_removal_max_tokens=settings.completion)
+        return RepairDeps(backend=LocalBackend(cfg), config=config,
+                          infer_backend=LocalBackend(cfg, structured=True),
+                          semantic_backend=LocalBackend(cfg),
+                          violation_backend=LocalBackend(cfg, detection=True))
+
     role_name = cfg.fix.simple_repairer_role or cfg.validation.semantic.reviewer_role
     role = cfg.models.get(role_name)
     if role is None:
@@ -259,7 +289,7 @@ def _default_repair_factory() -> "RepairDeps":
     # Violation-removal re-scan calls ``detect`` -> a detection-profile backend is
     # required (see docstring). Built from the effective config so overrides apply.
     violation_backend = (
-        create_detection_backend(cfg) if repair_config.violation_removal_enabled else None
+        _reasoning_detection_backend(cfg) if repair_config.violation_removal_enabled else None
     )
     return RepairDeps(
         backend=backend,
@@ -281,8 +311,8 @@ async def _run_cancellable(
     goes away. We publish a per-request :class:`CancelToken` on the cancellation
     contextvar, then run ``work`` via ``run_in_threadpool`` — anyio copies the
     current context into the worker thread, so the token reaches the ``httpx.Client``
-    send-wrap running there. Concurrently we poll ``request.is_disconnected()`` every
-    ~1s; on disconnect we cancel the token, which force-closes the in-flight client
+    send-wrap running there. Concurrently we await the ASGI disconnect event;
+    on disconnect we cancel the token, which force-closes the in-flight client
     and makes the next send raise :class:`RequestCancelled` (a ``BaseException`` that
     bypasses certfix's retry / per-chunk catches).
 
@@ -292,26 +322,31 @@ async def _run_cancellable(
     longer listening, so the response body is immaterial and we avoid polluting the
     logs with a 500.
     """
+    from .local import LocalFailure
     token = cancellation.CancelToken()
     # Publish the token on THIS task's context so the copied context handed to the
     # worker thread carries it. run_in_threadpool copies the context at call time.
     cancellation.set_current_token(token)
 
     async def _monitor() -> None:
-        # Poll for disconnect until cancelled by the finally below. ``is_disconnected``
-        # returns True once the ASGI receive channel reports http.disconnect.
+        # FastAPI has already consumed/validated the request body. Wait for the
+        # disconnect directly: is_disconnected() uses a pre-cancelled scope and
+        # can miss events when the authenticated middleware's receive checkpoints.
         try:
             while True:
-                if await request.is_disconnected():
+                message = await request.receive()
+                if message['type'] == 'http.disconnect':
                     token.cancel()
                     return
-                await asyncio.sleep(_DISCONNECT_POLL_S)
+                await asyncio.sleep(0)
         except asyncio.CancelledError:  # normal completion path cancels the monitor
             raise
 
     monitor_task = asyncio.ensure_future(_monitor())
     try:
         return await run_in_threadpool(work)
+    except LocalFailure as exc:
+        raise HTTPException(status_code=422, detail={'code': exc.code, 'message': exc.message}) from None
     except cancellation.RequestCancelled:
         # Client disconnected mid-flight; the LLM call was aborted. One numbers-only
         # diagnostic line (no source content), then re-raise for the endpoint to
@@ -387,7 +422,7 @@ def create_app(
         allow_headers=["*"],
     )
 
-    @app.get("/health", response_model=HealthResponse)
+    @app.get("/health", response_model=HealthResponse, response_model_exclude_none=True)
     def health() -> HealthResponse:
         # Effective model / provider (D-019): read the config (bundled or the
         # CREPAIR_CONFIG_PATH escape hatch) + apply CREPAIR_* env overrides. This
@@ -402,7 +437,8 @@ def create_app(
                 rule_profile=certfix_adapter.RULE_PROFILE_ID,
                 rules_count=certfix_adapter.rules_count(),
                 gates=HARNESS_GATES,
-                routes=HARNESS_ROUTES,
+                local_protocol_version=6 if os.environ.get("CREPAIR_ROUTE") == "local" else None,
+                routes=["local"] if os.environ.get("CREPAIR_ROUTE") == "local" else HARNESS_ROUTES,
                 model=effective.model,
                 provider_order=effective.provider_order,
                 reasoning_effort=effective.reasoning_effort,

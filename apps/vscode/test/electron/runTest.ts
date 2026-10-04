@@ -9,6 +9,8 @@
 
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { runTests } from '@vscode/test-electron';
 import { startFixtureBridge } from './suite/fixtureBridge';
 
@@ -21,12 +23,13 @@ async function main(): Promise<void> {
   const extensionTestsPath = path.resolve(__dirname, '../../dist-test/suite/index.js');
 
   const bridge = await startFixtureBridge();
+  const testProfile = await mkdtemp(path.join(tmpdir(), 'crepair-electron-profile-'));
   try {
     await runTests({
       extensionDevelopmentPath,
       extensionTestsPath,
       // Empty workspace; the suite creates a temp .c doc as needed.
-      launchArgs: ['--disable-extensions', '--disable-gpu'],
+      launchArgs: ['--disable-extensions', '--disable-gpu', '--disable-dev-shm-usage', '--user-data-dir', testProfile],
       // The fixture-bridge hook: BridgeManager attaches here instead of spawning
       // python. Unset in real usage, so production behaviour is unchanged.
       extensionTestsEnv: {
@@ -54,6 +57,7 @@ async function main(): Promise<void> {
     process.exitCode = 1;
   } finally {
     await bridge.close();
+    await rm(testProfile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   }
 }
 

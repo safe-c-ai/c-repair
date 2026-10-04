@@ -37,13 +37,14 @@ const SRC = [
   '',
 ].join('\n');
 
-const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash-0731';
+const DEFAULT_MODEL = 'deepseek/deepseek-v4.1-flash';
 const HOOK = 'CREPAIR_TEST_MODEL_MODE';
 
 interface ModelModeTestApi {
   seedApiKey(key: string): Thenable<void>;
   getSession(): unknown;
   getModelModeChosen(): boolean;
+  getOnboardingState(): { connectionConfigured: boolean; apiModelSelected: boolean; bridgePrepared: boolean };
 }
 
 function delay(ms: number): Promise<void> {
@@ -151,6 +152,58 @@ export function modelMode(rootSuite: Mocha.Suite): void {
         all.includes('crepair.chooseModelMode'),
         'crepair.chooseModelMode not registered',
       );
+    }),
+  );
+
+  suite.addTest(
+    new Mocha.Test('an untouched preset is not counted as an explicit API model choice', async () => {
+      await resetToUnchosen();
+      await waitFor(() => api.getOnboardingState().connectionConfigured && !api.getOnboardingState().apiModelSelected);
+      assert.equal(api.getModelModeChosen(), false);
+      assert.deepEqual(api.getOnboardingState(), { connectionConfigured: true, apiModelSelected: false, bridgePrepared: false });
+    }),
+  );
+
+  suite.addTest(
+    new Mocha.Test('cancelling local setup leaves onboarding incomplete even after switching mode', async () => {
+      await resetToUnchosen();
+      await vscode.commands.executeCommand('crepair.clearApiKey');
+      process.env[HOOK] = 'local';
+      let settled = false;
+      const selection = Promise.resolve(vscode.commands.executeCommand('crepair.chooseModelMode')).finally(() => { settled = true; });
+      const deadline = Date.now() + 10000;
+      while (!settled && Date.now() < deadline) {
+        await delay(100);
+        await vscode.commands.executeCommand('workbench.action.closeQuickOpen');
+      }
+      assert.ok(settled, 'setup did not cancel');
+      await selection;
+      assert.equal(cfg().get<string>('modelMode'), 'local');
+      await waitFor(() => !api.getOnboardingState().connectionConfigured && !api.getOnboardingState().apiModelSelected);
+      assert.deepEqual(api.getOnboardingState(), { connectionConfigured: false, apiModelSelected: false, bridgePrepared: false });
+      process.env[HOOK] = 'default';
+    }),
+  );
+
+  suite.addTest(
+    new Mocha.Test('local scan needs no API key, billing choice or external-route consent', async () => {
+      await resetToUnchosen();
+      await vscode.commands.executeCommand('crepair.clearApiKey');
+      await cfg().update('modelMode', 'local', vscode.ConfigurationTarget.Global);
+      await cfg().update('externalRouteNotice', true, vscode.ConfigurationTarget.Global);
+      process.env[HOOK] = 'esc';
+      try {
+        await scanOnce();
+        assert.ok(api.getSession(), 'local scan should reach the fixture bridge without any cloud onboarding');
+        assert.equal(cfg().get<string>('modelMode'), 'local');
+        await waitFor(() => api.getOnboardingState().connectionConfigured);
+        assert.deepEqual(api.getOnboardingState(), { connectionConfigured: true, apiModelSelected: false, bridgePrepared: true });
+      } finally {
+        await cfg().update('externalRouteNotice', false, vscode.ConfigurationTarget.Global);
+        await cfg().update('modelMode', undefined, vscode.ConfigurationTarget.Global);
+        await api.seedApiKey('local-test-restored-key');
+        process.env[HOOK] = 'default';
+      }
     }),
   );
 

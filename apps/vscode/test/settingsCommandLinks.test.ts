@@ -91,6 +91,7 @@ test('the Commands info panel links the main operations', () => {
     'crepair.editContext',
     'crepair.chooseModelMode',
     'crepair.resetExtensionState',
+    'crepair.openPracticeSample',
   ]) {
     assert.ok(ids.has(id), `Commands panel is missing a link to ${id}`);
   }
@@ -171,7 +172,7 @@ test('crepair.providerPolicy is placed directly before crepair.providerOrder', (
 test('the info panels carry no editable value (harmless as a setting)', () => {
   // "type": "null" renders the title + markdownDescription with no input widget,
   // so the panel cannot store a stray value that alters extension behaviour.
-  for (const key of ['crepair.apiKey', 'crepair.commands']) {
+  for (const key of ['crepair.localSetup', 'crepair.apiKey', 'crepair.commands']) {
     const prop = properties[key] as
       | (PkgProperty & { type?: unknown; default?: unknown })
       | undefined;
@@ -190,7 +191,7 @@ test('the info panels carry no editable value (harmless as a setting)', () => {
 
 /** The canonical section layout: title -> keys, in UI order. */
 const EXPECTED_SECTIONS: Array<{ title: string; keys: string[] }> = [
-  { title: 'Setup', keys: ['crepair.apiKey', 'crepair.commands'] },
+  { title: 'Setup', keys: ['crepair.localSetup', 'crepair.apiKey', 'crepair.commands'] },
   {
     title: 'Models & Routing',
     keys: [
@@ -219,6 +220,10 @@ const EXPECTED_SECTIONS: Array<{ title: string; keys: string[] }> = [
     title: 'Bridge (Advanced)',
     keys: ['crepair.bridge.pythonPath', 'crepair.bridge.configPath', 'crepair.bridge.port'],
   },
+  { title: 'Local Inference (Preview)', keys: [
+    'preset', 'serverPath', 'modelPath', 'contextTokens', 'maxCompletionTokens', 'structuredTokens', 'effort',
+    'gpuLayers', 'threads', 'mtpDraftTokens', 'timeoutSeconds', 'modelName', 'cpuExperts', 'templatePath', 'generation', 'structuredGeneration', 'cacheTypeK', 'cacheTypeV', 'batchSize', 'ubatchSize', 'configuration', 'managedArtifact',
+  ].map(k => `crepair.local.${k}`) },
 ];
 
 test('configuration is a section array with the expected titles and order', () => {
@@ -246,4 +251,11 @@ test('every section lists exactly its expected settings, in order', () => {
 test('the flattened key set matches the union of the sections (no stray / dropped keys)', () => {
   const expectedAll = EXPECTED_SECTIONS.flatMap((s) => s.keys);
   assert.deepEqual(flatKeys(), expectedAll, 'flattened keys drifted from the section union');
+});
+
+
+test('both settings entry points launch the same local setup command', () => {
+  for (const key of ['crepair.localSetup', 'crepair.local.preset']) {
+    assert.ok(commandLinksIn(properties[key]?.markdownDescription ?? '').includes('crepair.setUpLocal'));
+  }
 });

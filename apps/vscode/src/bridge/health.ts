@@ -18,6 +18,7 @@ export interface IdVersion {
 }
 
 export interface HealthCapabilities {
+  local_protocol_version?: number;
   rule_profile: string;
   rules_count: number;
   gates: string[];
@@ -32,8 +33,7 @@ export interface HealthCapabilities {
   // what crepair.reasoningEffort controls: "max"/"xhigh"/"high"/"medium"/"low"/
   // "minimal", "off" (disabled), or "default" (unconfigured).
   reasoning_effort?: string;
-  // Effective detection-role reasoning (D-029). Optional / defensive: detection
-  // reasoning is fixed off and independent of reasoning_effort. Present on newer
+  // Effective detection reasoning, shared with repair on current bridges. Present on newer
   // bridges only; parsed when well-typed, otherwise ignored.
   detection_reasoning?: string;
   // Effective provider policy (D-019 follow-up): "private-cheap" / "balanced" when a
@@ -97,6 +97,7 @@ function parseCapabilities(v: unknown): HealthCapabilities | null {
     gates: o.gates,
     routes: o.routes,
   };
+  if (typeof o.local_protocol_version === 'number') caps.local_protocol_version = o.local_protocol_version;
   // D-019 effective identity: accepted when present + well-typed; absence is not
   // an error (older bridge).
   if (typeof o.model === 'string') caps.model = o.model;
@@ -131,7 +132,7 @@ export function isHarnessInPin(version: string): boolean {
  * - harness version outside the pin => ok:true with harnessInPin:false (caller
  *   surfaces a warning and continues, D-017b).
  */
-export function checkHealthCompat(body: unknown): HealthCompat {
+export function checkHealthCompat(body: unknown, requireLocal = false): HealthCompat {
   const health = parseHealth(body);
   if (!health) {
     return { ok: false, reason: 'The bridge /health response was malformed.' };
@@ -143,6 +144,12 @@ export function checkHealthCompat(body: unknown): HealthCompat {
         `contract_version mismatch: the bridge speaks "${health.contract_version}" but this ` +
         `extension requires "${EXPECTED_CONTRACT_VERSION}". Update the extension or the harness bridge.`,
     };
+  }
+  if (requireLocal && health.capabilities.local_protocol_version !== 6) {
+    return { ok: false, reason: 'Update the Python bridge: GGUF reasoning controls require local protocol version 6. Run C Repair: Set Up Bridge to update.' };
+  }
+  if (requireLocal && (health.capabilities.routes.length !== 1 || health.capabilities.routes[0] !== 'local')) {
+    return { ok: false, reason: 'This bridge does not provide an exclusively local route. Update the Python bridge to the local-capable development version before scanning.' };
   }
   return { ok: true, harnessInPin: isHarnessInPin(health.harness.version), health };
 }
@@ -158,6 +165,7 @@ export function harnessPinLabel(): string {
  * with " → " to show the routing preference.
  */
 export function effectiveProviderLabel(caps: HealthCapabilities | undefined): string {
+  if (caps?.routes.includes('local')) return 'Local inference';
   const order = caps?.provider_order ?? [];
   if (order.length === 0) return 'OpenRouter automatic routing';
   return order.join(' → ');

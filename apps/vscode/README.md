@@ -1,79 +1,102 @@
 # C Repair
 
-**AI-assisted detection, repair, and validation for C coding standards, in VS Code.** Currently supports CERT® C;
+**AI-assisted detection, repair, and validation for C coding standards, in VS Code.** Currently supports CERT® C.
 
-C Repair scans a single C file for CERT® C violations, generates repair candidates with an LLM-driven repair harness, runs validation gates (compile / violation-removal / semantic / regression), and lets you review each fix as a diff before accepting it into your file. The final authority is always you: nothing is applied without an explicit Accept.
+Scan a C file, review each proposed repair as a diff, and apply the changes you choose. Each candidate includes five validation checks. **Nothing is applied without an explicit Accept.**
 
-![Scan results in VS Code: an INT32-C violation with a repair candidate — all five validation gates pass, and the proposed fix (including auto-added #include <stdint.h> / <limits.h>) is reviewed as a side-by-side diff before an explicit Accept.](media/scan.jpg)
+![A CERT C finding and proposed repair in VS Code, with validation results and a side-by-side diff.](media/scan.jpg)
 
-## Quick start (3 steps)
+## Get started
 
-Install **C Repair** from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=safe-c-ai.c-repair) (the **Get started with C Repair** walkthrough opens on first activation), then:
+Install **C Repair** from the [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=safe-c-ai.c-repair), then open the C Repair view from the Activity Bar.
 
-1. **Key** — `C Repair: Connect OpenRouter`: approve in the browser, paste the one-time code into the VS Code prompt (works locally, under WSL, and on remotes). Or paste an existing key with `C Repair: Set API Key`.
-2. **Bridge** — `C Repair: Set Up Bridge` (one-time; provisions a private Python env from the bundled wheels, then verifies `/health`).
-3. **Scan** — open a `.c` file and run `C Repair: Scan Current File` (or `Scan & Fix Current File` to also generate repairs and enter the review queue).
+Version **0.2.0** supports local and API inference on **Apple Silicon Mac (ARM64)**, **Windows x64**, and **Linux / WSL2 x64**. Other hosts are not supported in 0.2.0. For manual installation, choose the VSIX matching the extension host. With VS Code Remote / WSL, inference runs on the remote host.
 
-## How it works
+### Use a local model
 
-- A small local bridge (FastAPI, spawned by the extension) wraps the repair harness; the extension talks to it over localhost with a per-session token.
-- `Accepted file = your original file + the hunks you accepted` — inferred context (prelude) never leaks into your source.
-- Validation results are shown per gate; failing "judgment" gates (violation-removal / semantic / regression) can be overridden explicitly, mechanical gates (compile) cannot.
-- `Export Repair Report` produces a review-evidence Markdown (dispositions, gate evidence, accepted diffs) for PRs and QA.
+1. Choose **Use a local model** in the C Repair view and select a model. Initial quantization and memory settings are automatic.
+2. Check the download size and location, then choose **Download and start**. The extension prepares the model, runtime and bridge; no API key is needed.
+3. Open a `.c` file, right-click in the editor, and choose **Scan Current File** or **Scan & Fix Current File**.
 
-## Costs (BYOK)
+Normal Mac downloads use MLX; Windows / Linux downloads use GGUF. Your own models can be used through Custom. Adjust reasoning, tokens or the model from **C Repair's gear → Setup → Local Setup → Local model settings**, then choose **✓ Apply changes**.
 
-Scans and repairs call an LLM through **your** OpenRouter key. A single-file scan typically costs a few cents; each repair with validation gates costs a few cents more (large files cost more). The status bar shows the session's token usage and an approximate cost after each run. The **free** model mode (`C Repair: Choose Model Mode`) costs $0 with reduced quality and shared-pool rate limits — good for trying the flow.
+### Use the OpenRouter API
 
-## Data handling
+1. Choose **Connect OpenRouter** in the C Repair view. Approve in the browser and paste the one-time code into VS Code. For an existing key, use **gear → Setup → Api Key → Set API Key manually**. Choose an API model mode when prompted.
+2. Run **gear → Setup → Commands → Set Up Bridge** once and wait for the ready message.
+3. Open a `.c` file, right-click, and choose **Scan Current File** or **Scan & Fix Current File**.
 
-The content of the scanned C file (and the inferred context declarations) is sent to OpenRouter and routed to the configured model provider (preset: DeepSeek via DeepInfra) to perform detection, repair, and validation. **Do not scan files you are not allowed to share with those services.** Everything else stays local: the bridge runs on 127.0.0.1 only, nothing is stored outside your machine, and your API key lives in VS Code's secret storage (never in settings, logs, or command lines).
+**Preset** uses this release's model/provider configuration; **Free** uses a shared free pool; **Custom** uses your model/provider settings. All API modes require an OpenRouter key. To switch from Local to API, also select Preset, Free or Custom under **gear → Models & Routing → Model Mode**.
+
+## Quick start with a practice file
+
+After setup, learn the workflow on a small sample before using your own code.
+
+1. Choose **Open practice sample** in the C Repair view, its **…** menu, or **gear → Setup → Commands**. A fresh, writable `quick-start.c` opens beside the guide; your project files are untouched.
+2. Right-click inside the sample → **Scan & Fix Current File**. If Context Review opens, check the declarations and choose **Confirm & Scan**.
+3. Read the proposed diff and validation results, then choose **Accept Repair (✓)** or **Reject Repair (⊘)**. Accept edits only your practice copy; save it with Ctrl+S (⌘S on Mac).
+4. Return to the sample's editor tab and run **Scan Current File** again to inspect the changed code.
+
+The sample has an unchecked array index. Detection and repair use your selected model, so results vary. API use sends the sample to OpenRouter and consumes tokens. Open **Quick start & user guide** from the view's **book icon** for the full steps: [English](docs/user-guide.md#c-repair-quick-start) / [日本語](docs/user-guide.ja.md#c-repair-クイックスタート).
+
+## Updating from an earlier version
+
+After installing 0.2.0, reload VS Code. If you previously set up the Python bridge, run **gear → Setup → Commands → Set Up Bridge** once to install the updated bridge before using Scan or local setup. Your C Repair settings and API key are retained. If `crepair.bridge.pythonPath` points to your own Python environment, [update its bridge wheels separately](docs/local-models.md#custom-python-bridge).
+
+See the [change log](CHANGELOG.md) for this release.
+
+## Guides
+
+- **Using C Repair:** [English](docs/user-guide.md) / [日本語](docs/user-guide.ja.md) — setup, Scan, Context Review, validation, Accept / Reject, and reports.
+- **Local model settings:** [English](docs/local-models.md) / [日本語](docs/local-models.ja.md) — model requirements, memory, reasoning, tokens and troubleshooting.
+- **[C Repair Leaderboard](https://safe-c-ai.github.io/c-repair-leaderboard/cert-c/)** — model evaluation results.
+
+**Quick start & user guide** in C Repair settings or the view's book icon opens the bundled guide. **Settings guide** in Local model settings opens local tuning instructions. Japanese VS Code display languages open Japanese; other languages open English. The bundled guides can be read without internet access.
+
+## Review every change
+
+**Scan Current File** detects violations. **Scan & Fix Current File** also generates candidates and opens the review queue. Check the original and proposed code, read the validation evidence, and choose **Accept**, **Reject**, **Regenerate**, or **Next**.
+
+A format or compile failure blocks Accept. Warnings from violation-removal, semantic or regression checks can be overridden only with an explicit confirmation. A skipped check has not established correctness. **Export Repair Report** saves findings, evidence and decisions as Markdown, including code diffs where applicable.
+
+Accepted patches modify your original file; inferred helper declarations are never written into it. Some repairs need caller updates or other project changes. Complete those changes and run your normal build, tests and another scan.
 
 ## Requirements
 
-- VS Code 1.85+.
-- `gcc` on PATH (used locally for the compile gate; optional — without it the compile check reports as skipped).
-- A Python environment for the local bridge, any ONE of:
-  - [`uv`](https://docs.astral.sh/uv/getting-started/installation/) — `Set Up Bridge` provisions everything automatically (installs uv with your consent when missing);
-  - the monorepo dev venv (`services/repair-api/.venv`) when developing in the repo — detected automatically, takes priority;
-  - a manually prepared Python 3.10+ env with `repair-api` installed, pointed to by `crepair.bridge.pythonPath`.
-- An [OpenRouter](https://openrouter.ai) API key (bring your own key).
+- VS Code 1.85 or later.
+- Internet access for API inference, or for initial local model/runtime downloads.
+- A Python bridge environment, prepared with **Set Up Bridge** for API inference or automatically during local setup. The extension can install `uv` as part of that preparation.
+- `gcc` on PATH for compile validation (Apple Clang exposed as `gcc` is supported on Mac). Without an available compiler, the compile check is skipped.
+- For local inference: sufficient memory and a compatible engine. See the [local settings guide](docs/local-models.md#first-setup) for OS requirements and automatic profiles. Mac MLX execution has been checked on an M1 Max with 64 GiB; the 16/18 GB Mac profiles are experimental. Other Mac memory profiles are automatic starting settings, not guarantees of measured speed or quality on every device.
 
-## Known limitations
+## Costs and data handling
 
-- **Single `.c` file at a time** — no project-wide analysis.
-- **One finding per function** is repaired (harness constraint).
-- **Header-dense files are best-effort**: external declarations are inferred and shown for review; when the context still does not fully compile, results are marked **context incomplete (N symbols still missing)** — detection may miss violations there, and zero findings is not a safety guarantee.
-- MISRA C is out of scope.
+**API:** code and inferred helper declarations are sent to OpenRouter and the selected model provider for detection, repair and LLM validation. Your OpenRouter key stays in VS Code's secret storage. Paid usage depends on model pricing and token consumption; Free is subject to shared-pool availability and rate limits. Session token usage and approximate API cost are shown when available.
 
-### Repairs requiring project-wide changes
+**Local:** detection, repair and LLM validation run on the extension host without an API key. Models and runtimes are downloaded from external hosts during setup; inference does not send your code to OpenRouter. Model storage and memory use are described in the local settings guide.
 
-A candidate fixes a single function, so some repairs are only a **starting point**: a fix may change the function's public API (callers must be updated) or depend on facts outside the file (e.g. STR31-C needs the destination buffer's capacity, which often lives in the caller). Passing the validation gates does not guarantee your whole project is correct. Accept such a fix as a base, complete the wider changes yourself, then re-scan to verify — the **Getting Started** walkthrough (*Generate repairs and review* → *When a repair needs wider changes*) walks through this.
+Reports can contain your code. Review their contents before sharing them.
 
-## Troubleshooting the bridge setup
+## Limits
 
-| Symptom | Meaning / fix |
+- One `.c` file at a time; no project-wide analysis.
+- One finding per function is handled by the repair harness.
+- Missing external declarations may make context incomplete and detection less reliable. Zero findings does not prove the file safe.
+- Passing validation does not guarantee project-wide correctness.
+- MISRA C is not supported.
+
+## Common actions
+
+| Action | Where to find it |
 | --- | --- |
-| "uv is required … was not installed" | You declined the installer. Install uv manually (link in the message), then re-run `Set Up Bridge`. |
-| "The uv installer failed — a network problem…" | Check connectivity / proxy and retry. |
-| "…failed — the disk appears to be full" | Free disk space and retry. |
-| "No bridge wheels were found…" | This extension build lacks `bridge-dist/` (packaging issue). Monorepo developers use the repo venv instead — no bootstrap needed. |
-| "…does not match its recorded checksum" | The bundle is damaged: reinstall the vsix. |
-| "uv was installed but could not be located" | Restart VS Code so PATH refreshes, or install uv manually. |
-| Bridge starts but the model is empty in `/health` | Broken install — reinstall the vsix and re-run `Set Up Bridge` (the bridge logs a config error in the "C Repair" Output channel). |
+| Scan / Scan & Fix | Right-click in a C editor |
+| Local setup and tuning | Gear → Setup → Local Setup |
+| API key | Gear → Setup → Api Key |
+| API model mode and reasoning | Gear → Models & Routing |
+| Set Up Bridge, reports, Quick start and practice sample | Gear → Setup → Commands |
+| Stop Local Model | Command Palette: C Repair: Stop Local Model |
 
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `C Repair: Set Up Bridge` | Provision the local bridge environment (one-time). |
-| `C Repair: Scan Current File` | Detect CERT C violations. |
-| `C Repair: Scan & Fix Current File` | Scan, auto-generate repairs, review queue. |
-| `C Repair: Accept All Reviewed` | Apply every reviewed, eligible candidate. |
-| `C Repair: Export Repair Report` | Review-evidence Markdown for the current session. |
-| `C Repair: Connect OpenRouter` | Mint a key: approve in the browser, paste the code. |
-| `C Repair: Choose Model Mode` | Switch between the preset and free models. |
-| `C Repair: Reset Extension State` | Clear key + one-time flags; re-run onboarding. |
+If setup fails, open **View → Output → C Repair** for the reported cause. Resolve it and retry setup; for local generation or memory errors, use [local troubleshooting](docs/local-models.md#troubleshooting).
 
 ## Attribution
 

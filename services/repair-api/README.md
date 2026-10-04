@@ -85,7 +85,7 @@ curl -s http://127.0.0.1:8787/health
 #  "capabilities":{"rule_profile":"cert-c","rules_count":115,
 #    "gates":["format","compile","violation_removal","semantic","regression"],
 #    "routes":["api"],
-#    "model":"deepseek/deepseek-v4-flash","provider_order":["DeepInfra"]}}
+#    "model":"deepseek/deepseek-v4.1-flash","provider_order":["DeepInfra"]}}
 ```
 
 `rules_count` is read dynamically from the bundled CertFix rule catalog
@@ -158,9 +158,10 @@ gate). Omitting it reproduces the pre-D-020 behaviour exactly.
 
 ## Config
 
-`config/deepseek-v4-flash-openrouter.yaml` is a **copy** of the CertFix bundled config
-(detection `timeout` adjusted to 120s). Runtime never references a `certfix-dev`
-path. Set `OPENROUTER_API_KEY` in the environment for real detection.
+`config/deepseek-v4-flash-openrouter.yaml` is derived from the CertFix bundled
+profile, with c-repair adjustments. Its filename and internal role IDs are kept
+stable; detection, repair and LLM validation use `deepseek/deepseek-v4.1-flash`
+via OpenRouter / DeepInfra. Runtime never references a `certfix-dev` path. Set `OPENROUTER_API_KEY` in the environment for real detection.
 
 ### Model / provider overrides (D-019)
 

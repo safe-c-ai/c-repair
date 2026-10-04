@@ -15,6 +15,7 @@ import type {
 } from '@c-repair/contract';
 import type { HealthResponse } from './health';
 import { repairTimeoutMs, scanTimeoutMs } from './repairTimeout';
+import { localBridgeRequest } from './localBridgeRequest';
 
 // Timeouts (VSCODE_V1B_DESIGN §2, HttpClient.ts §4): health / infer / confirm are
 // fast -> 30s. Scan and repair are LLM-bound and now SIZE-SCALED (repairTimeout.ts):
@@ -29,6 +30,7 @@ export class BridgeHttpError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly code?: string,
   ) {
     super(message);
     this.name = 'BridgeHttpError';
@@ -68,6 +70,7 @@ export class BridgeClient {
   constructor(
     baseUrl: string,
     private readonly token: string,
+    private readonly localCallTimeoutMs?: number,
   ) {
     this.baseUrl = baseUrl.replace(/\/+$/, '');
   }
@@ -108,12 +111,14 @@ export class BridgeClient {
   async inferContext(
     source: SourceDocument,
     compileIncludePaths: string[] = [],
+    signal?: AbortSignal,
   ): Promise<ContextAugmentationSet> {
     return this.request<ContextAugmentationSet>(
       'POST',
       '/context/infer',
       { source_document: source, compile_include_paths: compileIncludePaths },
       DEFAULT_TIMEOUT_MS,
+      signal,
     );
   }
 
@@ -224,7 +229,9 @@ export class BridgeClient {
     // client disconnect and stops the in-flight LLM call (task A). We track whether
     // the CALLER aborted so the error is reported as a cancellation, not a timeout.
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const longLocalCall = !!this.localCallTimeoutMs && ['/scan', '/repair', '/context/infer'].includes(path);
+    const timer = longLocalCall
+      ? undefined : setTimeout(() => controller.abort(), timeoutMs);
     let cancelledByCaller = false;
     const onExternalAbort = (): void => {
       cancelledByCaller = true;
@@ -236,7 +243,8 @@ export class BridgeClient {
     }
     let resp: Response;
     try {
-      resp = await fetch(this.baseUrl + path, {
+      const send = longLocalCall ? localBridgeRequest : fetch;
+      resp = await send(this.baseUrl + path, {
         method,
         headers: this.headers(),
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -288,6 +296,12 @@ export function isCancellation(err: unknown): boolean {
 /** Build a readable error from a non-2xx response. Never includes source text. */
 async function toHttpError(resp: Response, path: string): Promise<BridgeHttpError> {
   const detail = await readDetail(resp);
+  try {
+    const parsed = JSON.parse(detail) as { code?: string; message?: string };
+    if (parsed.code?.startsWith('local_') && typeof parsed.message === 'string') {
+      return new BridgeHttpError(parsed.message, resp.status, parsed.code);
+    }
+  } catch { /* ordinary FastAPI error */ }
   const suffix = detail ? `: ${detail}` : '';
   if (resp.status === 401) {
     return new BridgeHttpError(`Unauthorized (401) on ${path}${suffix}`, 401);

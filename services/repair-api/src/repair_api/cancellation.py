@@ -13,12 +13,11 @@ Mechanism
   worker thread (``copy_context()``), so the contextvar — and thus the token — is
   visible to the ``httpx.Client.send`` wrapper running in that worker thread. This
   is the same propagation the finish_reason recorder relies on.
-- While the sync work runs, the async endpoint concurrently polls
-  ``request.is_disconnected()`` (~1s). On disconnect it calls
+- While the sync work runs, the async endpoint awaits the ASGI disconnect event.
+  On disconnect it calls
   :meth:`CancelToken.cancel`, which (a) sets the event so the next ``send`` raises,
-  and (b) force-closes every currently-registered in-flight httpx ``Client`` so a
-  ``send`` already blocked in the OS read is aborted immediately rather than after
-  the (possibly 30-minute) socket timeout.
+  and (b) closes registered in-flight httpx clients. Local HTTP requests also
+  register socket shutdown callbacks to interrupt blocked reads on macOS.
 
 Retry avoidance
 ---------------
@@ -41,7 +40,9 @@ best-effort and never raises into either side.
 from __future__ import annotations
 
 import contextvars
+import contextlib
 import logging
+import socket
 import threading
 from typing import Any, Optional
 
@@ -152,3 +153,68 @@ def raise_if_current_cancelled() -> None:
     token = _current_token.get()
     if token is not None:
         token.raise_if_cancelled()
+
+
+@contextlib.contextmanager
+def local_http_cancellation():
+    """Interrupt local HTTP reads, including active keep-alive connections.
+
+    Closing an httpx pool does not reliably interrupt another thread's active
+    recv on macOS. Capture connected sockets through httpcore's trace extension
+    and shutdown a duplicate descriptor on cancel. The duplicate also avoids a
+    race with the existing client-close callback. No private pool fields or
+    global transport patching are needed; callers scope this to one local client.
+    """
+    token = get_current_token()
+    if token is None:
+        yield {}
+        return
+
+    class Sockets:
+        def __init__(self):
+            self.lock = threading.Lock()
+            self.sockets = []
+            self.cancelled = False
+
+        def trace(self, name, info):
+            if name != 'connection.connect_tcp.complete':
+                return
+            stream = info['return_value']
+            duplicate = stream.get_extra_info('socket').dup()
+            with self.lock:
+                if self.cancelled:
+                    self.shutdown(duplicate)
+                else:
+                    self.sockets.append(duplicate)
+            token.raise_if_cancelled()
+
+        @staticmethod
+        def shutdown(sock):
+            try:
+                sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass
+            finally:
+                sock.close()
+
+        def close(self):
+            with self.lock:
+                self.cancelled = True
+                for sock in self.sockets:
+                    self.shutdown(sock)
+                self.sockets.clear()
+
+        def release(self):
+            with self.lock:
+                for sock in self.sockets:
+                    sock.close()
+                self.sockets.clear()
+
+    sockets = Sockets()
+    token.register(sockets)
+    try:
+        token.raise_if_cancelled()
+        yield {'trace': sockets.trace}
+    finally:
+        token.unregister(sockets)
+        sockets.release()

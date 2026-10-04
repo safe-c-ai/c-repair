@@ -62,7 +62,7 @@ def test_health_identity(client: TestClient) -> None:
     assert body["status"] == "ok"
     # Identity is now `harness` (D-017a rename), not `engine`.
     assert body["harness"] == {"id": "certfix", "version": certfix.__version__}
-    assert body["adapter"] == {"id": "certfix-inprocess", "version": "0.1.0"}
+    assert body["adapter"] == {"id": "certfix-inprocess", "version": "0.2.0"}
     assert "engine" not in body
 
 
@@ -113,8 +113,8 @@ def test_health_shape_and_capabilities(client: TestClient) -> None:
 def test_health_reports_bundled_effective_model_and_provider(client: TestClient) -> None:
     """/health surfaces the effective model / provider (D-019), default = bundled."""
     caps = client.get("/health").json()["capabilities"]
-    # Bundled deepseek-v4-flash-openrouter.yaml: DeepInfra-pinned deepseek-v4-flash.
-    assert caps["model"] == "deepseek/deepseek-v4-flash-0731"
+    # Bundled profile: DeepInfra-pinned DeepSeek V4.1 Flash.
+    assert caps["model"] == "deepseek/deepseek-v4.1-flash"
     assert caps["provider_order"] == ["DeepInfra"]
 
 
@@ -171,7 +171,7 @@ def test_health_reports_bundled_reasoning_effort(client: TestClient) -> None:
     caps = client.get("/health").json()["capabilities"]
     # Bundled config pins the fix role at xhigh; detection reasoning is fixed off.
     assert caps["reasoning_effort"] == "xhigh"
-    assert caps["detection_reasoning"] == "off"
+    assert caps["detection_reasoning"] == caps["reasoning_effort"]
 
 
 def test_health_reports_env_overridden_reasoning_effort(monkeypatch) -> None:
@@ -181,7 +181,7 @@ def test_health_reports_env_overridden_reasoning_effort(monkeypatch) -> None:
     caps = TestClient(app).get("/health").json()["capabilities"]
     assert caps["reasoning_effort"] == "low"
     # Detection stays off regardless of the override (D-029).
-    assert caps["detection_reasoning"] == "off"
+    assert caps["detection_reasoning"] == caps["reasoning_effort"]
 
 
 def test_health_reasoning_effort_off(monkeypatch) -> None:
@@ -190,7 +190,7 @@ def test_health_reasoning_effort_off(monkeypatch) -> None:
     app = create_app(backend_factory=lambda: ScriptedFake({}))
     caps = TestClient(app).get("/health").json()["capabilities"]
     assert caps["reasoning_effort"] == "off"
-    assert caps["detection_reasoning"] == "off"
+    assert caps["detection_reasoning"] == caps["reasoning_effort"]
 
 
 # --- /context/infer ---------------------------------------------------------

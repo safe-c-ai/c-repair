@@ -1,6 +1,7 @@
 # V3b (V3_PACKAGING_DESIGN §2): the vsix ships ONLY the bundled runtime
 # (dist/), the bridge wheels + manifest (bridge-dist/), and the extension
-# manifest/README. Everything below is development-only and never packaged.
+# manifest/README, local engine archive, setup resources and guides.
+# Everything below is development-only and never packaged.
 src/**
 test/**
 node_modules/**
@@ -13,3 +14,29 @@ tsconfig.json
 **/*.map
 **/*.ts
 .gitignore
+
+*.vsix.sha256
+
+.mac-package-*/**
+
+.local-package-*/**
+
+**/__pycache__/**
+**/*.pyc
+
+# Only current end-user guides belong in the extension.
+docs/**
+!docs/local-models.md
+!docs/local-models.ja.md
+!docs/user-guide.md
+!docs/user-guide.ja.md
+**/.DS_Store
+スクリーンショット*.png
+
+# Local test files and screenshots are not extension assets.
+**/*.c
+**/*.c.*
+sample_sensor.c
+
+# The only C source shipped is the user-facing practice template.
+!resources/quick-start.c

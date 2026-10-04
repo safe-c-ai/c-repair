@@ -1,0 +1,31 @@
+{
+  "id": "linux-x64-cuda-multi-9b05354e-v2",
+  "platform": "linux",
+  "arch": "x64",
+  "bundle": "engine.tar.gz",
+  "sha256": "5c435010f019539aabcf53688fea63d154e56ff3b2bb5bbbfca9a0ca77eb4029",
+  "libraries": [
+    {
+      "filename": "nvidia_cublas.whl",
+      "bytes": 581240110,
+      "sha256": "e4f53a8ca8c5d6e8c492d0d0a3d565ecb59a751b19cfdaa4f6da0ab2104c1702",
+      "url": "https://files.pythonhosted.org/packages/cb/c0/0a517bfe63ccd3b92eb254d264e28fca3c7cab75d07daea315250fb1bf73/nvidia_cublas_cu12-12.9.2.10-py3-none-manylinux_2_27_x86_64.whl"
+    },
+    {
+      "filename": "nvidia_cuda_runtime.whl",
+      "bytes": 3493179,
+      "sha256": "25bba2dfb01d48a9b59ca474a1ac43c6ebf7011f1b0b8cc44f54eb6ac48a96c3",
+      "url": "https://files.pythonhosted.org/packages/bc/46/a92db19b8309581092a3add7e6fceb4c301a3fd233969856a8cbf042cd3c/nvidia_cuda_runtime_cu12-12.9.79-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+    }
+  ],
+  "bytes": 232801375,
+  "sourceCommit": "9b05354ec6fb58b4e665e9a39ebc40285c015638",
+  "computeCapabilities": [
+    "7.5",
+    "8.0",
+    "8.6",
+    "8.9",
+    "9.0",
+    "12.0"
+  ]
+}

@@ -1,7 +1,6 @@
 // Walkthrough contribution tests (V3c, V3_PACKAGING_DESIGN §2): the Getting
 // Started walkthrough must keep its pinned shape — 5 steps in onboarding order,
-// each backed by an existing media markdown file and completed by real
-// commands. Pure Node: reads package.json and the media files off disk.
+// each backed by an existing media markdown file and completed by successful setup state or scan/review commands. Pure Node: reads package.json and the media files off disk.
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,6 +17,7 @@ interface WalkthroughStep {
   description: string;
   media: { markdown: string };
   completionEvents: string[];
+  when?: string;
 }
 
 function loadWalkthrough(): { id: string; steps: WalkthroughStep[]; pkg: Record<string, unknown> } {
@@ -53,7 +53,7 @@ test('every step has an existing media markdown file', () => {
   }
 });
 
-test('every completionEvent references a command the extension contributes', () => {
+test('completion events reference registered commands or successful setup state', () => {
   const { steps, pkg } = loadWalkthrough();
   const contributes = pkg.contributes as { commands: { command: string }[] };
   const known = new Set(contributes.commands.map((c) => c.command));
@@ -61,8 +61,8 @@ test('every completionEvent references a command the extension contributes', () 
     assert.ok(step.completionEvents.length >= 1, `${step.id} has completionEvents`);
     for (const ev of step.completionEvents) {
       const m = /^onCommand:(.+)$/.exec(ev);
-      assert.ok(m, `${step.id}: completionEvent ${ev} is onCommand-based`);
-      assert.ok(known.has(m[1]), `${step.id}: command ${m[1]} is contributed`);
+      if (m) assert.ok(known.has(m[1]), `${step.id}: command ${m[1]} is contributed`);
+      else assert.match(ev, /^onContext:crepair\.walkthrough\.(connectionConfigured|apiModelSelected|bridgePrepared)$/);
     }
   }
 });
@@ -92,4 +92,16 @@ test('review-accept walkthrough documents wider-change repairs (workflow doc)', 
   assert.match(md, /STR31-C/);
   assert.match(md, /Accept → edit → re-scan/);
   assert.match(md, /stale/);
+});
+
+
+test('local setup hides API-only steps and wizard invocation never completes setup', () => {
+  const { steps } = loadWalkthrough();
+  assert.equal(steps[1].when, 'config.crepair.modelMode != local');
+  assert.equal(steps[2].when, 'config.crepair.modelMode != local');
+  assert.deepEqual(steps.slice(0, 3).map(s => s.completionEvents), [
+    ['onContext:crepair.walkthrough.connectionConfigured'],
+    ['onContext:crepair.walkthrough.apiModelSelected'],
+    ['onContext:crepair.walkthrough.bridgePrepared'],
+  ]);
 });

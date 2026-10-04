@@ -21,7 +21,8 @@
     "typecheck:vscode": "npm run typecheck -w c-repair",
     "build:vscode": "npm run build -w c-repair",
     "test:vscode": "npm run test -w c-repair",
-    "package:vsix": "npm run package:vsix -w c-repair"
+    "package:vsix": "node tools/package-local.mjs",
+    "test:packaging": "node --test tools/test/package-local.test.mjs"
   },
   "devDependencies": {
     "ajv": "^8.17.1"

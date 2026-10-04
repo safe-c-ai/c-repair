@@ -26,3 +26,6 @@ __pycache__/
 apps/vscode/bridge-dist/
 # V3b: locally-built extension packages
 *.vsix
+
+# Built local inference engine bundle (tools/build-local-engine.py)
+apps/vscode/engine-dist/

@@ -24,8 +24,8 @@ test('effectiveModelId: blank / whitespace / undefined falls back to the verifie
 
 test('modelProvidersUrl: normal model maps directly onto the OpenRouter path', () => {
   assert.equal(
-    modelProvidersUrl('deepseek/deepseek-v4-flash-0731'),
-    `${OPENROUTER_BASE}/deepseek/deepseek-v4-flash-0731`,
+    modelProvidersUrl('deepseek/deepseek-v4.1-flash'),
+    `${OPENROUTER_BASE}/deepseek/deepseek-v4.1-flash`,
   );
 });
 

@@ -1,19 +1,18 @@
-# DeepSeek V4 Flash via OpenRouter -- the ONLY supported route for c-repair V1
-# (D-018). Copied from the CertFix bundled profile with c-repair adjustments.
+# DeepSeek V4.1 Flash via OpenRouter -- the c-repair API preset.
+# Derived from the CertFix bundled profile with c-repair adjustments.
+# The filename and internal deepseek_v4_flash role/profile IDs are retained for
+# compatibility; the API model IDs below select the current release's model.
 #
 # Required environment:
 #
 #   export OPENROUTER_API_KEY=...
 #
-# Why OpenRouter only (D-018):
-# - BYOK reality: end users get one key usable across models/providers.
-# - The DeepSeek official API exhibited a reasoning-exhaustion failure for the
-#   repair prompt (thinking consumed max_tokens; content came back empty).
-#   Via OpenRouter/DeepInfra the model returns plain content with no reasoning
-#   burn (measured 2026-08-21, 3/3 APPLY_FIX), so no thinking workaround needed.
+# OpenRouter provides one BYOK key for model/provider selection (D-018).
+# Earlier DeepSeek V4 Flash measurements are recorded in docs/DECISIONS.md;
+# those results do not establish quality or reasoning behavior for V4.1 Flash.
 #
-# Security note: source code is sent to the routed provider (DeepInfra) via
-# OpenRouter. The extension shows an external-route notice before the first scan.
+# Source code is sent to the routed provider (DeepInfra) via OpenRouter.
+# The extension shows an external-route notice before the first scan.
 
 detection:
   backend: api
@@ -24,7 +23,7 @@ detection:
   qwen36_selector_permutations: 3
   api:
     base_url: https://openrouter.ai/api/v1
-    model: deepseek/deepseek-v4-flash-0731
+    model: deepseek/deepseek-v4.1-flash
     api_key_env: OPENROUTER_API_KEY
     timeout: 120
     max_tokens: 1024
@@ -36,18 +35,9 @@ detection:
       provider:
         order: ["DeepInfra"]
         allow_fallbacks: false
-      # Detection reasoning is fixed OFF (D-029). A/B on the same play.c input:
-      # reasoning xhigh disturbed the 2-stage detection profile (structured
-      # output + rule identification) -> ~1 violation on average with frequent
-      # uncertain findings (a 0v/2u run observed), and missed real violations.
-      # OFF gave 4v/0u (2v on a rerun), zero uncertain, in ~7s. reasoning is
-      # therefore never enabled for detection, and CREPAIR_REASONING_EFFORT /
-      # crepair.reasoningEffort do NOT apply here (fix role only). With reasoning
-      # off there is no thinking burn, so max_tokens returns to the pre-D-028
-      # 1024 (the D-018 exhaustion mode only arose from thinking) -- faster and
-      # cheaper.
+      # Shared with repair; send-time conversion reserves thinking + answer tokens.
       reasoning:
-        enabled: false
+        effort: xhigh
 
 models:
   deepseek_v4_flash:
@@ -57,7 +47,7 @@ models:
     temperature: 0.0
     api:
       base_url: https://openrouter.ai/api/v1
-      model: deepseek/deepseek-v4-flash-0731
+      model: deepseek/deepseek-v4.1-flash
       api_key_env: OPENROUTER_API_KEY
       timeout: 300
       max_tokens: 8192
@@ -69,28 +59,14 @@ models:
         provider:
           order: ["DeepInfra"]
           allow_fallbacks: false
-        # Fix-role reasoning (D-028) applies to repair/validation generate calls
-        # ONLY. /context/infer does NOT inherit it: the bridge clones this role
-        # with reasoning replaced by {enabled: false} for its dedicated infer
-        # backend (see _default_repair_factory). Rationale is the same as
-        # detection's D-029 -- infer is a structured-output task (labelled fenced
-        # declaration blocks), and with reasoning enabled some free-pool
-        # providers (nemotron, observed on lua-lapi/lua-lgc) write the CoT into
-        # `content`, exhausting the infer token budget before any declaration is
-        # emitted (0 items; response tail cut mid-thought). CREPAIR_REASONING_EFFORT
-        # / crepair.reasoningEffort likewise apply to the fix role only, never
-        # to infer.
+        # Repair and violation detection share this reasoning level.
+        # Declaration completion (/context/infer) remains reasoning off.
         #
-        # D-034: the effort LEVEL below is what users configure, but the bridge
-        # converts it to an explicit `reasoning: {max_tokens: CAP}` right before
+        # D-034: the bridge converts effort to a thinking-token cap before
         # sending (max=32768 / xhigh=24576 / high=16384 / medium=8192 /
-        # low=4096 / minimal=1024; off stays {enabled: false}). Measured
-        # 2026-08-22 on 2k-line repairs: with effort-style reasoning the
-        # thinking ADAPTS to the whole completion budget and starves the
-        # content (3/3 finish=length, reasoning 47k/87k/58k tokens); an
-        # explicit max_tokens cap is honored by the provider, and the repair
-        # completion budget then adds exactly that cap on top of the content
-        # term, so content room is structurally guaranteed.
+        # low=4096 / minimal=1024; off stays {enabled: false}). The completion
+        # budget includes the cap plus the answer allowance. Whether a provider
+        # honors the cap depends on the model/provider implementation.
         reasoning:
           effort: xhigh
 

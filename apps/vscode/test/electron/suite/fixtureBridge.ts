@@ -52,6 +52,16 @@ const SCAN_FUNCTIONS = [
 
 /** Repair candidates keyed by function_id (hunks from the fixtures). */
 const CANDIDATES: Record<string, { candidate_id: string; finding_id: string; hunks: unknown[] }> = {
+  'fn-read-sample': {
+    candidate_id: 'cand-practice',
+    finding_id: 'find-practice-bounds',
+    hunks: [{
+      hunk_id: 'hunk-practice-bounds',
+      start_line: 7,
+      line_count: 1,
+      replacement_text: '    if (index < 0 || index >= 3) {\n        return -1;\n    }\n    return values[index];',
+    }],
+  },
   'fn-scale-reading': {
     candidate_id: 'cand-001',
     finding_id: 'find-scale-int32',
@@ -267,6 +277,7 @@ function readBody(req: http.IncomingMessage): Promise<any> {
 
 /** Start the fixture bridge on an ephemeral port. Returns its base URL + close(). */
 export function startFixtureBridge(): Promise<FixtureBridge> {
+  const requestCounts: Record<string, number> = {};
   const server = http.createServer((req, res) => {
     void handle(req, res);
   });
@@ -278,6 +289,12 @@ export function startFixtureBridge(): Promise<FixtureBridge> {
       res.end(json);
     };
     const url = req.url ?? '';
+
+    if (req.method === 'GET' && url === '/__test__/request-counts') {
+      send(200, requestCounts);
+      return;
+    }
+    requestCounts[url] = (requestCounts[url] ?? 0) + 1;
 
     if (req.method === 'GET' && url === '/health') {
       send(200, {
@@ -403,6 +420,23 @@ export function startFixtureBridge(): Promise<FixtureBridge> {
     if (req.method === 'POST' && url === '/scan') {
       const src = body.source_document;
       addUsage(SCAN_USAGE); // D-030: meter the scan's LLM tokens
+      // Practice-file tests use a single deterministic finding and known repair.
+      // This is an offline UI fixture, not evidence of any real model's accuracy.
+      const practice = src.content.includes('int read_sample(int index)');
+      const practiceFunctions = [{
+        function_id: 'fn-read-sample',
+        name: 'read_sample',
+        original_range: { start_line: 4, end_line: src.content.trimEnd().split('\n').length },
+        findings: src.content.includes('if (index < 0 || index >= 3)') ? [] : [{
+          finding_id: 'find-practice-bounds',
+          kind: 'violation',
+          rule_id: 'ARR30-C',
+          rule_summary: 'Do not form or use out-of-bounds pointers or array subscripts.',
+          explanation: 'index can be outside the three-element array.',
+          location: { start_line: 7, end_line: 7 },
+          assumption_dependent: false,
+        }],
+      }];
       send(200, {
         scan_id: 'scan-test-1',
         source_id: src.source_id,
@@ -411,7 +445,7 @@ export function startFixtureBridge(): Promise<FixtureBridge> {
         rule_profile: { id: 'cert-c-fixture', version: '0.1.0' },
         adapter: { id: 'fixture', version: '0.1.0' },
         harness: { id: 'fixture', version: '0.4.0' },
-        functions: SCAN_FUNCTIONS,
+        functions: practice ? practiceFunctions : SCAN_FUNCTIONS,
       });
       return;
     }

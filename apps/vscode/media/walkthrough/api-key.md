@@ -1,16 +1,18 @@
-## Connect your OpenRouter key (BYOK)
+## Choose local or API inference
 
-C Repair is **bring-your-own-key**: scans and repairs run through *your*
-[OpenRouter](https://openrouter.ai) account, and you pay OpenRouter directly —
-the extension has no backend of its own.
+- **Local:** [Use a local model](command:crepair.setUpLocal), choose the model,
+  then download and start it. Memory settings and the Python bridge are prepared
+  automatically. No API key or separate bridge setup is needed. If you cancel
+  setup, choose **Use a local model** again to finish.
+- **API:** [Connect OpenRouter](command:crepair.connectOpenRouter), approve in
+  your browser, then paste the one-time code into VS Code. An existing key can
+  be entered through [Set API Key](command:crepair.setApiKey).
 
-- **[Connect OpenRouter](command:crepair.connectOpenRouter)** — opens the
-  OpenRouter approval page in your browser. After you approve, the page shows
-  a one-time code (valid for 10 minutes): **copy it and paste it into the
-  VS Code prompt**. C Repair exchanges it for a key and stores it. This works
-  the same everywhere — local, WSL, and remote setups.
-- **[Set API Key](command:crepair.setApiKey)** — paste an existing key from
-  the OpenRouter dashboard instead.
+The API key is kept in VS Code's secret storage. API inference sends code to
+OpenRouter and the selected provider; local inference runs on your computer.
 
-The key is kept in VS Code's secret storage. It is never written to settings,
-logs, or the command line.
+To switch from Local to API, also select **Preset**, **Free**, or **Custom** in
+[Settings](command:crepair.openSettings) → **Models & Routing → Model Mode**.
+Connecting a key alone does not switch modes.
+
+[Quick start & user guide](command:crepair.openUserGuide) explains the full workflow.

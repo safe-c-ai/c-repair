@@ -315,7 +315,7 @@ def test_rule_titles_off_leaves_uncertain_wording_intact(monkeypatch) -> None:
 def test_identity_fields() -> None:
     backend = ScriptedFake({})
     result = _scan(backend, SENSOR)
-    assert result["adapter"] == {"id": "certfix-inprocess", "version": "0.1.0"}
+    assert result["adapter"] == {"id": "certfix-inprocess", "version": "0.2.0"}
     assert result["rule_profile"] == {"id": "cert-c", "version": "certfix-0.4.1-bundled"}
     assert result["harness"]["id"] == "certfix"
     assert result["harness"]["version"]  # certfix.__version__

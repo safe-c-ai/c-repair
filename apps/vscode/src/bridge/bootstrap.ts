@@ -333,11 +333,11 @@ export async function runBootstrap(
     }
   }
 
-  // 3. Create the venv under globalStorage.
+  // 3. Recreate our managed venv, including an existing/partial installation.
   deps.report('Creating the bridge environment…');
   deps.mkdirp(dirs.globalStorageDir);
   const venvDir = provisionedVenvDir(dirs.globalStorageDir);
-  const venv = await deps.exec(uv, ['venv', '--python', '3.10', venvDir]);
+  const venv = await deps.exec(uv, ['venv', '--clear', '--python', '3.10', venvDir]);
   if (venv.code !== 0) {
     throw new BootstrapError(
       `Creating the bridge environment failed — ${failureDetail(venv.stderr)}.`,

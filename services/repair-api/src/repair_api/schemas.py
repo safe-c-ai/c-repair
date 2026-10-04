@@ -225,6 +225,7 @@ class IdentityRef(_Strict):
 
 
 class Capabilities(_Strict):
+    local_protocol_version: Optional[int] = None
     rule_profile: str
     rules_count: int
     gates: List[str]

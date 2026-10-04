@@ -40,6 +40,7 @@ class _BlockingScanBackend:
 
     def __init__(self) -> None:
         self.started = threading.Event()
+        self.cancelled = threading.Event()
 
     def detect(self, code, rules=None, *args, **kwargs):
         self.started.set()
@@ -47,12 +48,13 @@ class _BlockingScanBackend:
         # Park until cancelled (or a generous safety timeout so a bug can't hang CI).
         for _ in range(500):  # 500 * 20ms = 10s ceiling
             if token is not None and token.cancelled:
+                self.cancelled.set()
                 token.raise_if_cancelled()
             threading.Event().wait(0.02)
         raise AssertionError("detect was never cancelled (disconnect not propagated)")
 
 
-async def _call_scan_with_disconnect(app, body: dict) -> int:
+async def _call_scan_with_disconnect(app, body: dict, *, blocking=False, authenticated=False) -> int:
     """Invoke POST /scan through the ASGI app, disconnecting once work has started.
 
     Returns the response status code the app produced on the aborted path.
@@ -80,6 +82,9 @@ async def _call_scan_with_disconnect(app, body: dict) -> int:
         "server": ("127.0.0.1", 80),
     }
 
+    if authenticated:
+        scope['headers'].append((b'authorization', b'Bearer cancellation-test-token'))
+
     # A NON-BLOCKING receive channel: the first call hands over the request body;
     # every later call returns http.disconnect ONCE the blocking backend has started
     # (else a benign empty http.request). Non-blocking is required because Starlette's
@@ -91,6 +96,13 @@ async def _call_scan_with_disconnect(app, body: dict) -> int:
         if not state["body_sent"]:
             state["body_sent"] = True
             return {"type": "http.request", "body": payload, "more_body": False}
+        if blocking:
+            # Uvicorn/middleware receive has checkpoints. A pre-cancelled poll
+            # loses this notification even when the peer has disconnected.
+            while not backend.started.is_set():
+                await asyncio.sleep(.01)
+            await asyncio.sleep(.01)
+            return {'type': 'http.disconnect'}
         if backend.started.is_set():
             return {"type": "http.disconnect"}
         # Backend not in-flight yet: yield a benign no-op body chunk so the poll
@@ -107,7 +119,10 @@ async def _call_scan_with_disconnect(app, body: dict) -> int:
     return sent.get("status", 0)
 
 
-def test_scan_aborts_on_client_disconnect() -> None:
+@pytest.mark.parametrize('blocking,authenticated', [(False, False), (True, False), (True, True)])
+def test_scan_aborts_on_client_disconnect(monkeypatch, blocking, authenticated) -> None:
+    if authenticated:
+        monkeypatch.setenv('CREPAIR_BRIDGE_TOKEN', 'cancellation-test-token')
     # Driven with asyncio.run (no pytest-asyncio/anyio plugin installed): a plain
     # sync test that runs the async ASGI drive to completion.
     backend = _BlockingScanBackend()
@@ -139,8 +154,9 @@ def test_scan_aborts_on_client_disconnect() -> None:
     }
 
     async def _run() -> int:
-        return await asyncio.wait_for(_call_scan_with_disconnect(app, body), timeout=15)
+        return await asyncio.wait_for(_call_scan_with_disconnect(app, body, blocking=blocking, authenticated=authenticated), timeout=15)
 
     status = asyncio.run(_run())
     # 499 = the client-closed abort path (handler swallowed RequestCancelled).
-    assert status == 499
+    assert backend.cancelled.is_set(), 'disconnect did not cancel the worker'
+    assert status in (0, 499) if authenticated else status == 499

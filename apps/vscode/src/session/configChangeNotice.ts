@@ -105,7 +105,7 @@ export function decideConfigChangeNotice(
   changed: ChangedSettings,
   mode: ModelMode,
 ): ConfigChangeNotice {
-  if (changedCustomOnly(changed) && mode !== 'custom') {
+  if (changedCustomOnly(changed) && mode !== 'custom' && mode !== 'local') {
     return { kind: 'switch-to-custom', mode };
   }
   if (changedRestartRelevant(changed)) {
@@ -268,7 +268,7 @@ export function decideStartupConfigNotice(
   settings: StartupSettings,
   mode: ModelMode,
 ): StartupConfigNotice {
-  if (mode === 'custom') return { kind: 'none' };
+  if (mode === 'custom' || mode === 'local') return { kind: 'none' };
   const parts = unusedSettingsParts({
     model: settings.model,
     providerOrder: settings.providerOrder,

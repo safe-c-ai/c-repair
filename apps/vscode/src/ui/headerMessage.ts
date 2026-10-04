@@ -1,7 +1,7 @@
 // Pure builders for the C Repair TreeView header (`treeView.message`). The header
 // is up to three lines:
 //   1) the always-on model / tier / reasoning line, e.g.
-//        "Model: deepseek/deepseek-v4-flash-0731 (PAID) · reasoning: xhigh"
+//        "Model: deepseek/deepseek-v4.1-flash (PAID) · reasoning: xhigh"
 //   2) the always-on standard line — the supported coding standard, referenced
 //        (not a compliance claim): "Standard: CERT® C" (D-039).
 //   3) the session token/cost line (cost/sessionUsage.ts), when a scan is active.
@@ -11,6 +11,8 @@
 import type { HealthCapabilities } from '../bridge/health';
 import { effectiveModelLabel, effectiveReasoningLabel } from '../bridge/health';
 import { DEFAULT_OVERRIDES, modeDisplayLower, type ModelMode } from '../bridge/overrideEnv';
+import type { LocalSettings } from '../bridge/localSettings';
+import { reasoningKey, type LocalReasoningInfo } from '../bridge/localReasoning';
 
 /** The inputs to the model line, resolved by the caller (health or settings). */
 export interface ModelLineInputs {
@@ -28,6 +30,9 @@ export interface ModelLineInputs {
   mode: ModelMode;
   /** `crepair.model` (used when caps are absent AND mode is `custom`); blank => default. */
   configuredModel: string;
+  configuredLocalModel?: string;
+  localSettings?: LocalSettings;
+  localReasoning?: LocalReasoningInfo;
   /** `crepair.freeModel` (shown when caps are absent AND mode is `free`). */
   freeModel: string;
   /** `crepair.reasoningEffort` (used when caps are absent). */
@@ -51,6 +56,7 @@ export function configuredModelForMode(
   configuredModel: string,
   freeModel: string,
 ): string {
+  if (mode === 'local') return 'Qwen3.8-27B';
   if (mode === 'free') return freeModel.trim() || DEFAULT_OVERRIDES.model;
   if (mode === 'default') return DEFAULT_OVERRIDES.model;
   return configuredModel.trim() || DEFAULT_OVERRIDES.model;
@@ -87,7 +93,7 @@ export function reasoningText(
 
 /**
  * Build the always-on model line, e.g.
- *   "Model: deepseek/deepseek-v4-flash-0731 (PAID) · reasoning: xhigh · mode: standard"
+ *   "Model: deepseek/deepseek-v4.1-flash (PAID) · reasoning: xhigh · mode: standard"
  * The model id comes from /health when available, else the configured setting (a
  * blank setting resolves to the verified default). The FREE/PAID tag reflects the
  * effective model + free-construction state; the reasoning value follows the same
@@ -97,13 +103,43 @@ export function reasoningText(
  * `default` mode renders as its display label (D-038); free/custom as themselves.
  */
 export function modelLineText(inputs: ModelLineInputs): string {
+  if (inputs.mode === 'local' && inputs.localSettings) return localSettingsText(inputs.localSettings, inputs.localReasoning);
   const model =
     inputs.caps !== undefined
       ? effectiveModelLabel(inputs.caps)
-      : configuredModelForMode(inputs.mode, inputs.configuredModel, inputs.freeModel);
-  const tier = isFreeModel(model, inputs.onFreeModel) ? 'FREE' : 'PAID';
+      : inputs.mode === 'local' && inputs.configuredLocalModel
+        ? inputs.configuredLocalModel
+        : configuredModelForMode(inputs.mode, inputs.configuredModel, inputs.freeModel);
+  const tier = inputs.mode === 'local' ? 'LOCAL' : isFreeModel(model, inputs.onFreeModel) ? 'FREE' : 'PAID';
   const reasoning = reasoningText(inputs.caps, inputs.configuredReasoning);
   return `Model: ${model} (${tier}) · reasoning: ${reasoning} · mode: ${modeDisplayLower(inputs.mode)}`;
+}
+
+/** Reflect saved request settings, including custom template overrides, without
+ * guessing a model identity or its default thinking behavior from the filename. */
+export function localThinkingText(settings: LocalSettings, structured = false, resolved?: LocalReasoningInfo): string {
+  const options = structured ? { ...settings.generation, ...settings.detectionGeneration } : settings.generation;
+  const kwargs = options?.chat_template_kwargs as Record<string, unknown> | undefined;
+  const enabled = kwargs?.enable_thinking;
+  const effort = kwargs?.reasoning_effort;
+  if (enabled === false) return 'off';
+  if (resolved?.key === reasoningKey(settings)) return structured ? resolved.detection : resolved.repair;
+  if (settings.preset !== 'custom' && !Object.hasOwn(options ?? {}, 'chat_template_kwargs')) return settings.effort === 'model' ? 'model default' : settings.effort;
+  if (enabled === true) return typeof effort === 'string' ? `on (${effort})` : 'on';
+  return typeof effort === 'string' ? `thinking unverified (effort: ${effort})` : 'model default (unverified)';
+}
+
+export function localSettingsText(settings: LocalSettings, resolved?: LocalReasoningInfo): string {
+  const file = settings.modelPath.replace(/\\/g, '/').split('/').pop();
+  const model = file || settings.modelName || 'No GGUF selected';
+  const profile = settings.preset === 'custom' ? 'Custom' : settings.modelName || 'Model preset';
+  const tokens = (n: number) => n.toLocaleString('en-US');
+  return [
+    `Local model: ${model}${settings.runtime === 'mlx' ? ' (MLX)' : ''}`,
+    `Preset: ${profile} · Reasoning: scan ${localThinkingText(settings, true, resolved)} / repair ${localThinkingText(settings, false, resolved)}`,
+    `Tokens: context ${tokens(settings.contextTokens)} · repair/detection ${tokens(settings.maxCompletionTokens)} · declarations ${tokens(settings.structuredTokens)}`,
+    settings.runtime === 'mlx' ? 'Engine: MLX / Metal · KV: model dtype' : `GPU layers: ${settings.gpuLayers}${settings.gpuLayers === 0 ? ' (CPU)' : ''} · KV cache: ${settings.cacheTypeK ?? 'f16'}/${settings.cacheTypeV ?? 'f16'}${settings.cpuExperts ? ' · Experts in RAM' : ''}`,
+  ].join(' | ');
 }
 
 /**

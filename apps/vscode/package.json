@@ -1,6 +1,6 @@
 {
   "name": "c-repair",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "displayName": "C Repair",
   "icon": "media/icon.png",
@@ -171,6 +171,33 @@
         "title": "Next Repair",
         "category": "C Repair",
         "icon": "$(arrow-right)"
+      },
+      {
+        "command": "crepair.setUpLocal",
+        "title": "Set Up Local Model",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.localSettings",
+        "title": "Configure Local Inference",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.stopLocalModel",
+        "title": "Stop Local Model",
+        "category": "C Repair"
+      },
+      {
+        "command": "crepair.openUserGuide",
+        "title": "Quick Start & User Guide",
+        "category": "C Repair",
+        "icon": "$(book)"
+      },
+      {
+        "command": "crepair.openPracticeSample",
+        "title": "Open Practice Sample",
+        "category": "C Repair",
+        "icon": "$(file-code)"
       }
     ],
     "viewsContainers": {
@@ -194,7 +221,7 @@
     "viewsWelcome": [
       {
         "view": "crepairResults",
-        "contents": "Right-click a .c file and run \"C Repair: Scan Current File\" to begin."
+        "contents": "Choose how to run C Repair.\n[Use a local model](command:crepair.setUpLocal)\n[Connect OpenRouter](command:crepair.connectOpenRouter)\n[Settings](command:crepair.openSettings)\nAfter setup, try the basic workflow on a practice file:\n[Open practice sample](command:crepair.openPracticeSample)\nNeed help? [Quick start & user guide](command:crepair.openUserGuide)"
       }
     ],
     "menus": {
@@ -212,12 +239,22 @@
         {
           "command": "crepair.exportFeedbackData",
           "when": "view == crepairResults",
-          "group": "navigation@3"
+          "group": "2_exports@1"
         },
         {
           "command": "crepair.openSettings",
           "when": "view == crepairResults",
           "group": "navigation@4"
+        },
+        {
+          "command": "crepair.openUserGuide",
+          "when": "view == crepairResults",
+          "group": "navigation@3"
+        },
+        {
+          "command": "crepair.openPracticeSample",
+          "when": "view == crepairResults",
+          "group": "1_learn@1"
         }
       ],
       "editor/context": [
@@ -337,6 +374,11 @@
       {
         "title": "Setup",
         "properties": {
+          "crepair.localSetup": {
+            "type": "null",
+            "default": null,
+            "markdownDescription": "[Local model settings](command:crepair.localSettings) — Current model, quantization, save location and reasoning.\n\n[Set up or start local model](command:crepair.setUpLocal) — Choose a model for initial setup, or start with saved settings.\n\n[C Repair Leaderboard](https://safe-c-ai.github.io/c-repair-leaderboard/cert-c/) — Compare CERT C model evaluation results."
+          },
           "crepair.apiKey": {
             "type": "null",
             "default": null,
@@ -347,7 +389,7 @@
             "type": "null",
             "default": null,
             "order": 1,
-            "markdownDescription": "Shortcuts to the main C Repair actions; this panel stores no value.\n\n- [Scan Current File](command:crepair.scanCurrentFile) — scan the active `.c` file.\n- [Scan & Fix Current File](command:crepair.scanAndFixCurrentFile) — scan, then generate repairs.\n- [Edit Context](command:crepair.editContext) — review inferred external declarations.\n- [Choose Model Mode](command:crepair.chooseModelMode) — choose Preset, Free or Custom.\n- [Reset Extension State](command:crepair.resetExtensionState) — remove the API key, session and one-time state. Settings values are kept."
+            "markdownDescription": "Shortcuts to the main C Repair actions; this panel stores no value.\n\n- [Quick start & user guide](command:crepair.openUserGuide) — learn Scan, review and Accept on a practice file.\n- [Open practice sample](command:crepair.openPracticeSample) — open a fresh editable copy alongside the guide.\n- [Set Up Bridge](command:crepair.setUpBridge) — prepare or update the Python bridge. Local setup includes initial preparation.\n- [Export Repair Report](command:crepair.exportRepairReport) — save the current session as Markdown.\n- [Scan Current File](command:crepair.scanCurrentFile) — scan the active `.c` file.\n- [Scan & Fix Current File](command:crepair.scanAndFixCurrentFile) — scan, then generate repairs.\n- [Edit Context](command:crepair.editContext) — review inferred external declarations.\n- [Choose Model Mode](command:crepair.chooseModelMode) — choose the preset, free model or local setup. Use Model Mode for Custom.\n- [Reset Extension State](command:crepair.resetExtensionState) — remove the API key, session and one-time state. Settings values are kept."
           }
         }
       },
@@ -359,21 +401,24 @@
             "enum": [
               "default",
               "free",
-              "custom"
+              "custom",
+              "local"
             ],
             "default": "default",
             "order": 2,
             "enumItemLabels": [
               "Preset",
               "Free",
-              "Custom"
+              "Custom",
+              "Local — run a downloaded model on the extension host; no API key"
             ],
             "markdownEnumDescriptions": [
-              "Preset — the model and provider preset of this C Repair release (currently DeepSeek V4 Flash on DeepInfra), tested on the CERT C benchmark. Usage-based cost; the preset may change in future releases.",
+              "Preset — the model and provider preset of this C Repair release (currently DeepSeek V4.1 Flash on DeepInfra). Usage-based cost; the preset may change in future releases.",
               "Free — uses `crepair.freeModel` at $0 with automatic routing. Quality, speed and availability are lower and the shared free pool can be rate-limited (429).",
-              "Custom — use the Model / Provider Policy / Provider Order / Reasoning Effort values below exactly as set. Unverified combinations are self-service."
+              "Custom — use the Model / Provider Policy / Provider Order / Reasoning Effort values below exactly as set. Unverified combinations are self-service.",
+              "Run all inference locally using your downloaded model. No OpenRouter key required."
             ],
-            "markdownDescription": "The single source of truth for model routing. Preset (stored value `default`) uses this release's benchmark-tested preset and incurs usage-based OpenRouter charges, typically a few cents per file; the preset may change between releases. Free uses `crepair.freeModel` at $0 with lower quality, speed and availability. Custom uses Model, Provider Policy, Provider Order and Allow Fallbacks exactly as configured; unverified combinations are self-service. Reasoning Effort applies in every mode. Restart the bridge to apply."
+            "markdownDescription": "The single source of truth for model routing. Preset (stored value `default`) uses this release's configured preset and incurs usage-based OpenRouter charges, typically a few cents per file; the preset may change between releases. Free uses `crepair.freeModel` at $0 with lower quality, speed and availability. Custom uses Model, Provider Policy, Provider Order and Allow Fallbacks exactly as configured; unverified combinations are self-service. Reasoning Effort applies in every mode. Restart the bridge to apply."
           },
           "crepair.freeModel": {
             "type": "string",
@@ -401,12 +446,12 @@
               "Nominal minimum — the smallest budget while still reasoning.",
               "Disable reasoning entirely (no thinking tokens)."
             ],
-            "markdownDescription": "Applies to repair generation and validation gates in every mode; detection always runs with reasoning off. The bridge converts each level to a thinking-token cap. Some providers ignore the distinction: levels may behave equivalently on the Preset DeepInfra model. Restart the bridge to apply."
+            "markdownDescription": "Applies to repair, violation detection and validation gates in API modes (Preset, Free and Custom). Declaration completion uses reasoning off. The bridge converts each level to a thinking-token cap. Support for reasoning levels and token caps depends on the model and provider. Restart the bridge to apply. Local mode uses Reasoning in [Local model settings](command:crepair.localSettings); this API setting does not change local inference."
           },
           "crepair.model": {
             "type": "string",
-            "default": "deepseek/deepseek-v4-flash-0731",
-            "markdownDescription": "Custom mode's OpenRouter model ID. The default `deepseek/deepseek-v4-flash-0731` on DeepInfra is verified; other models may not work with the CERT C prompts. Restart the bridge to apply.\n\nGuidance: [C Repair Leaderboard](https://safe-c-ai.github.io/c-repair-leaderboard/cert-c/) · [OpenRouter Rankings](https://openrouter.ai/rankings)."
+            "default": "deepseek/deepseek-v4.1-flash",
+            "markdownDescription": "Custom mode's OpenRouter model ID. The initial value matches this release's preset, `deepseek/deepseek-v4.1-flash` on DeepInfra. Model and provider choices can affect CERT C repair results. Restart the bridge to apply.\n\nGuidance: [C Repair Leaderboard](https://safe-c-ai.github.io/c-repair-leaderboard/cert-c/) · [OpenRouter Rankings](https://openrouter.ai/rankings)."
           },
           "crepair.providerPolicy": {
             "type": "string",
@@ -536,57 +581,275 @@
             "markdownDescription": "TCP port on `127.0.0.1`; `0` automatically chooses a free ephemeral port. Restart the bridge to apply."
           }
         }
+      },
+      {
+        "title": "Local Inference (Preview)",
+        "properties": {
+          "crepair.local.preset": {
+            "type": "string",
+            "default": "qwen38-27b-q4km",
+            "enum": [
+              "qwen38-27b-q4km",
+              "qwen36-35b-a3b",
+              "ornith15-35b-a3b",
+              "custom"
+            ],
+            "markdownDescription": "[Set up or start local model](command:crepair.setUpLocal) for initial setup. Use [Local model settings](command:crepair.localSettings) to change the model and its matching GGUF together.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.serverPath": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Leave empty for automatic engine preparation. Advanced: absolute path to a compatible llama-server on the extension host.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.modelPath": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Absolute path to the selected model GGUF on the extension host.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.contextTokens": {
+            "type": "number",
+            "default": 65536,
+            "markdownDescription": "Total context capacity: input plus thinking and final answer. Increasing this needs more memory and reloads the model on next use.",
+            "scope": "machine",
+            "minimum": 1,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.maxCompletionTokens": {
+            "type": "number",
+            "default": 32768,
+            "markdownDescription": "Maximum combined thinking and final-answer tokens for repair, violation detection and semantic validation. Increase after a generation-limit error; context must also fit the input.",
+            "scope": "machine",
+            "minimum": 1,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.structuredTokens": {
+            "type": "number",
+            "default": 4096,
+            "markdownDescription": "Combined reasoning and final-answer limit for declaration completion. Reasoning defaults to off; structuredGeneration can override declaration options.",
+            "scope": "machine",
+            "minimum": 1,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.effort": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "default": null,
+            "markdownDescription": "Null uses the preset: Qwen3.8 xhigh, Qwen3.6 model-native thinking. Qwen3.8 supports off/medium/xhigh; Qwen3.6 supports off/model. Custom uses generation/structuredGeneration template kwargs instead.",
+            "scope": "machine",
+            "enum": [
+              "off",
+              "medium",
+              "xhigh",
+              "model",
+              null
+            ],
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.gpuLayers": {
+            "type": "number",
+            "default": 99,
+            "markdownDescription": "Number of layers on GPU. 99 requests all layers; reduce to move weights to RAM at a speed cost.",
+            "scope": "machine",
+            "minimum": 0,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.threads": {
+            "type": "number",
+            "default": 12,
+            "markdownDescription": "CPU threads; 0 uses the inference engine default. Mac setup uses 0.",
+            "scope": "machine",
+            "minimum": 0,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.mtpDraftTokens": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "default": null,
+            "markdownDescription": "Null uses the preset: Qwen3.8 width 2, Qwen3.6/Custom disabled (0). Enable only with compatible model MTP weights/runtime.",
+            "scope": "machine",
+            "minimum": 0,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.timeoutSeconds": {
+            "type": "number",
+            "default": 2400,
+            "markdownDescription": "Timeout for one local inference call. Longer reasoning may take many minutes.",
+            "scope": "machine",
+            "minimum": 1,
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.modelName": {
+            "type": "string",
+            "default": "Custom local model",
+            "markdownDescription": "Custom model display/request name. Presets use their own names; this does not select or download weights.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.cpuExperts": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "default": null,
+            "markdownDescription": "Keep MoE expert weights in system RAM (--cpu-moe), trading speed for lower VRAM use. Null uses the preset: on for Qwen3.6, off otherwise. Requires sufficient RAM and a compatible runtime.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.templatePath": {
+            "type": "string",
+            "default": "",
+            "markdownDescription": "Optional absolute Jinja chat-template file path. Empty uses GGUF metadata. Select a template matching the model.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.generation": {
+            "type": "object",
+            "default": {},
+            "markdownDescription": "Custom repair/semantic sampling and chat_template_kwargs. Empty uses runtime/model defaults. Supported keys: temperature, top_p, top_k, min_p, repeat_penalty, presence_penalty, chat_template_kwargs. Does not override routing, prompts or token limits.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.structuredGeneration": {
+            "type": "object",
+            "default": {},
+            "markdownDescription": "Custom declaration-completion sampling and chat_template_kwargs. Configure thinking off here when the model supports it, or allow enough structuredTokens for reasoning plus the final answer.",
+            "scope": "machine",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.cacheTypeK": {
+            "type": "string",
+            "default": "f16",
+            "enum": [
+              "f16",
+              "q8_0"
+            ],
+            "scope": "machine",
+            "markdownDescription": "KV cache format. Q8 saves memory; speed depends on hardware. Changes reload the model.",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.cacheTypeV": {
+            "type": "string",
+            "default": "f16",
+            "enum": [
+              "f16",
+              "q8_0"
+            ],
+            "scope": "machine",
+            "markdownDescription": "KV cache format. Q8 saves memory; speed depends on hardware. Changes reload the model.",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.batchSize": {
+            "type": "number",
+            "default": 2048,
+            "minimum": 1,
+            "scope": "machine",
+            "markdownDescription": "Input processing batch size. Physical batch (ubatchSize) must not exceed batchSize. Smaller batches can reduce working memory without truncating input.",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.ubatchSize": {
+            "type": "number",
+            "default": 512,
+            "minimum": 1,
+            "scope": "machine",
+            "markdownDescription": "Physical batch size; must not exceed the input batch size. Edit it under Local model settings → Advanced settings.",
+            "included": false,
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          },
+          "crepair.local.configuration": {
+            "type": "object",
+            "scope": "machine",
+            "markdownDescription": "Effective local model configuration, managed by Local model settings. Model changes and related options are saved together."
+          },
+          "crepair.local.managedArtifact": {
+            "type": "string",
+            "scope": "machine",
+            "included": false,
+            "markdownDescription": "Internal downloaded model identity. Use Local model settings to change models.",
+            "deprecationMessage": "Legacy setting. Use Local model settings. After migration, values are stored together in crepair.local.configuration and this individual setting is ignored."
+          }
+        }
       }
     ],
     "walkthroughs": [
       {
         "id": "crepair.gettingStarted",
         "title": "Get started with C Repair",
-        "description": "Attach your OpenRouter key, set up the local bridge, and review your first CERT C repair.",
+        "description": "Choose local or API inference, then review your first CERT C repair.",
         "steps": [
           {
             "id": "crepair.step.apiKey",
-            "title": "Connect your OpenRouter key",
-            "description": "C Repair is bring-your-own-key: scans run through your OpenRouter account. Approve access in the browser, then paste the code OpenRouter shows you.\n[Connect OpenRouter](command:crepair.connectOpenRouter)\nOr paste an existing key instead:\n[Set API Key](command:crepair.setApiKey)",
+            "title": "Choose local or API inference",
+            "description": "Use a downloaded model on your machine, or connect your OpenRouter account.\n[Use a local model](command:crepair.setUpLocal)\n[Connect OpenRouter](command:crepair.connectOpenRouter)\n[Set API Key](command:crepair.setApiKey)\nSwitching from Local to API? Select Preset, Free or Custom in Settings → Models & Routing → Model Mode as well as connecting your key.\n[Settings](command:crepair.openSettings)\n[Quick start & user guide](command:crepair.openUserGuide)",
             "media": {
               "markdown": "media/walkthrough/api-key.md"
             },
             "completionEvents": [
-              "onCommand:crepair.connectOpenRouter",
-              "onCommand:crepair.setApiKey"
+              "onContext:crepair.walkthrough.connectionConfigured"
             ]
           },
           {
             "id": "crepair.step.modelMode",
-            "title": "Choose a model mode",
-            "description": "Default (verified, a few cents per scan) or Free ($0, lower quality, shared pool).\n[Choose Model Mode](command:crepair.chooseModelMode)",
+            "title": "Choose an API model mode",
+            "description": "Choose the preset or free model when prompted. For Custom, use Model Mode in Settings.\n[Choose Model Mode](command:crepair.chooseModelMode)\n[Settings](command:crepair.openSettings)",
             "media": {
               "markdown": "media/walkthrough/model-mode.md"
             },
             "completionEvents": [
-              "onCommand:crepair.chooseModelMode"
-            ]
+              "onContext:crepair.walkthrough.apiModelSelected"
+            ],
+            "when": "config.crepair.modelMode != local"
           },
           {
             "id": "crepair.step.bridge",
-            "title": "Set up the local bridge",
-            "description": "One-time: provision the local Python bridge from the bundled wheels. Monorepo developers skip this (the repo venv is auto-detected).\n[Set Up Bridge](command:crepair.setUpBridge)",
+            "title": "Prepare the API bridge",
+            "description": "Set up the Python bridge once and wait for the ready message.\n[Set Up Bridge](command:crepair.setUpBridge)",
             "media": {
               "markdown": "media/walkthrough/bridge.md"
             },
             "completionEvents": [
-              "onCommand:crepair.setUpBridge"
-            ]
+              "onContext:crepair.walkthrough.bridgePrepared"
+            ],
+            "when": "config.crepair.modelMode != local"
           },
           {
             "id": "crepair.step.firstScan",
-            "title": "Scan a C file",
-            "description": "Open a .c file and scan it. A Context Review may ask you to confirm inferred declarations first.\n[Scan Current File](command:crepair.scanCurrentFile)",
+            "title": "Try the practice file",
+            "description": "Open a practice file, then right-click in its C editor and choose Scan & Fix Current File. A Context Review may ask you to confirm declarations first.\n[Open practice sample](command:crepair.openPracticeSample)",
             "media": {
               "markdown": "media/walkthrough/first-scan.md"
             },
             "completionEvents": [
-              "onCommand:crepair.scanCurrentFile"
+              "onCommand:crepair.scanCurrentFile",
+              "onCommand:crepair.scanAndFixCurrentFile"
             ]
           },
           {
@@ -612,7 +875,7 @@
     "test": "node --test --import tsx test/*.test.ts",
     "pretest:electron": "node esbuild.mjs && node esbuild.test.mjs",
     "test:electron": "node --import tsx test/electron/runTest.ts",
-    "package:vsix": "node esbuild.mjs && vsce package --no-dependencies --baseContentUrl https://raw.githubusercontent.com/safe-c-ai/c-repair/main/apps/vscode --baseImagesUrl https://raw.githubusercontent.com/safe-c-ai/c-repair/main/apps/vscode"
+    "package:vsix": "node ../../tools/package-local.mjs"
   },
   "dependencies": {
     "@c-repair/contract": "*",

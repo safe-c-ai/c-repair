@@ -1,14 +1,23 @@
-## Run your first scan
+## Try your first repair on a practice file
 
-Open a single `.c` file and run
-**[Scan Current File](command:crepair.scanCurrentFile)**.
+Choose **[Open practice sample](command:crepair.openPracticeSample)** to open a
+fresh, editable `quick-start.c` beside the quick-start guide. Your project and
+previous practice copies are unchanged; opening it does not start inference.
 
-Because C Repair analyzes one file in isolation, external types and macros are
-often missing. Before scanning, the extension **infers provisional
-declarations** (a "Context Review" may open so you can confirm or edit them —
-they are working context only and are **never written into your file**). When
-the context still does not fully compile, results are marked **context
-incomplete (N symbols still missing)**: detection may then miss violations, so
-zero findings is not a safety guarantee for such files.
+Finish local or API setup, then **right-click inside the sample → Scan & Fix
+Current File**. If Context Review opens, check the declarations and choose
+**Confirm & Scan** in the notification.
 
-Findings appear in the **C Repair** view and as squiggles in the editor.
+Wait for findings, a proposed diff and validation results. The sample has an
+unchecked array index; look for a bounds check that returns `-1` when invalid.
+Results depend on your model. API scans and repairs send the sample to
+OpenRouter and consume tokens.
+
+Review the proposal and choose **Accept Repair (✓)** or **Reject Repair (⊘)**. Accept edits the
+practice copy; save it with Ctrl+S (⌘S on Mac). Return to the `quick-start.c`
+editor tab and run **Scan Current File** again to inspect the current code.
+
+**Scan Current File** detects findings. **Scan & Fix Current File** also
+generates repairs. Format or compile failures block Accept; inspect any warning
+before confirming it. Use the [Quick start & user guide](command:crepair.openUserGuide)
+for the full steps.

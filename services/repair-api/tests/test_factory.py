@@ -93,7 +93,7 @@ def test_fix_role_effort_converted_to_cap_config_and_backend_agree() -> None:
     # Provider pin survives the conversion.
     assert deps.config.fix_extra_body["provider"] == cfg.models[role_name].api.extra_body["provider"]
     # Detection keeps its own reasoning-off setting (D-029, untouched).
-    assert deps.violation_backend._extra_body["reasoning"] == {"enabled": False}
+    assert deps.violation_backend._extra_body["reasoning"] == {"max_tokens": expected_cap}
 
 
 def test_repair_deps_infer_backend_defaults_to_none() -> None:
@@ -104,3 +104,19 @@ def test_repair_deps_infer_backend_defaults_to_none() -> None:
 
     deps = RepairDeps(backend=object(), config=object())
     assert deps.infer_backend is None
+
+
+def test_scan_and_recheck_share_repair_reasoning_and_reserve_answer_budget(monkeypatch):
+    from repair_api.main import _default_backend_factory
+    from repair_api.adapter.repair import REASONING_EFFORT_CAPS
+    for level in ['off', *REASONING_EFFORT_CAPS]:
+        monkeypatch.setenv('CREPAIR_REASONING_EFFORT', level)
+        deps = _default_repair_factory()
+        scan = _default_backend_factory()
+        for detection in [scan, deps.violation_backend]:
+            assert detection._extra_body['reasoning'] == deps.backend._extra_body['reasoning']
+            if level != 'off':
+                assert detection._extra_body['max_tokens'] >= REASONING_EFFORT_CAPS[level] + 1024
+            else:
+                assert 'max_tokens' not in detection._extra_body
+        assert deps.infer_backend._extra_body['reasoning'] == {'enabled': False}

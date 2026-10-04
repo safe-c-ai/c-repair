@@ -42,7 +42,7 @@ test('model override emits CREPAIR_MODEL_ID only', () => {
 });
 
 test('model equal to default (after trim) emits nothing', () => {
-  assert.deepEqual(buildOverrideEnv(settings({ model: '  deepseek/deepseek-v4-flash-0731  ' })), {});
+  assert.deepEqual(buildOverrideEnv(settings({ model: '  deepseek/deepseek-v4.1-flash  ' })), {});
 });
 
 test('non-default provider order emits a comma-joined list', () => {

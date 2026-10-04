@@ -178,7 +178,7 @@ test('happy path: uv present -> venv + wheel install into globalStorage', async 
   assert.deepEqual(deps.mkdirs, [STORAGE]);
   const cmds = deps.execs.map((e) => [e.cmd, ...e.args].join(' '));
   assert.equal(cmds[0], 'uv --version');
-  assert.equal(cmds[1], `uv venv --python 3.10 ${provisionedVenvDir(STORAGE)}`);
+  assert.equal(cmds[1], `uv venv --clear --python 3.10 ${provisionedVenvDir(STORAGE)}`);
   // --reinstall pins the same-version-wheel refresh behaviour (a repaired
   // bundled wheel must actually replace the installed copy).
   assert.equal(cmds[2], `uv pip install --reinstall --python ${out.venvPython} ${WHEEL_PATH}`);
